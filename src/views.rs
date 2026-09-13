@@ -42,7 +42,7 @@ pub fn layout(active_theme: &str, theme_options: &str, nav_active: &str, body: &
       {nav_reports}
     </nav>
     <div class="theme-dropdown-wrap">
-      <button type="button" class="btn-ghost" id="theme-picker-btn" onclick="toggleThemeDropdown(event)" aria-haspopup="listbox" aria-expanded="false">
+      <button type="button" class="btn-ghost" id="theme-picker-btn" onclick="toggleDropdown(event, 'theme-dropdown')" aria-haspopup="listbox" aria-expanded="false">
         <span id="theme-picker-label">THEME</span> <span class="caret-down">&#9662;</span>
       </button>
       <div id="theme-dropdown" class="theme-dropdown" role="listbox" hidden>
@@ -112,24 +112,29 @@ function applyTheme(name) {{
 }}
 function selectTheme(name) {{
   applyTheme(name);
-  closeThemeDropdown();
+  closeAllDropdowns();
 }}
-function toggleThemeDropdown(e) {{
+// Generic custom dropdown (theme picker, archive format, and any future
+// one) — a native <select>'s selected/hovered option always gets forced
+// system-blue with zero author override in Chromium, so every picker in
+// this app uses this instead.
+function toggleDropdown(e, ddId) {{
   e.stopPropagation();
-  const dd = document.getElementById('theme-dropdown');
-  dd.hidden = !dd.hidden;
-  document.getElementById('theme-picker-btn').setAttribute('aria-expanded', String(!dd.hidden));
+  const dd = document.getElementById(ddId);
+  const wasHidden = dd.hidden;
+  closeAllDropdowns();
+  dd.hidden = !wasHidden;
+  e.currentTarget.setAttribute('aria-expanded', String(!dd.hidden));
 }}
-function closeThemeDropdown() {{
-  document.getElementById('theme-dropdown').hidden = true;
-  document.getElementById('theme-picker-btn').setAttribute('aria-expanded', 'false');
+function closeAllDropdowns() {{
+  document.querySelectorAll('.theme-dropdown').forEach(dd => {{ dd.hidden = true; }});
+  document.querySelectorAll('[aria-haspopup="listbox"]').forEach(b => b.setAttribute('aria-expanded', 'false'));
 }}
 document.addEventListener('click', (e) => {{
-  const wrap = document.querySelector('.theme-dropdown-wrap');
-  if (wrap && !wrap.contains(e.target)) closeThemeDropdown();
+  if (!e.target.closest('.theme-dropdown-wrap')) closeAllDropdowns();
 }});
 document.addEventListener('keydown', (e) => {{
-  if (e.key === 'Escape') closeThemeDropdown();
+  if (e.key === 'Escape') closeAllDropdowns();
 }});
 
 window.addEventListener('DOMContentLoaded', () => {{
@@ -428,13 +433,19 @@ pub fn scans_page() -> String {
   <div class="window">
     <div class="titlebar"><span class="dot dot-a"></span><span class="dot dot-b"></span><span class="dot dot-c"></span><span class="titlebar-text">compress diagnostics/ output</span></div>
     <div class="window-body">
-      <label class="field-label" for="archive-format">Format</label>
-      <select id="archive-format" class="text-input" style="max-width:220px;margin-bottom:0.75rem;">
-        <option value="zip">.ZIP (standard)</option>
-        <option value="tar">.TAR (uncompressed)</option>
-        <option value="gzip">.TAR.GZ (compressed)</option>
-        <option value="7z">.7Z (high compression)</option>
-      </select>
+      <label class="field-label">Format</label>
+      <div class="theme-dropdown-wrap" style="margin-bottom:0.75rem;">
+        <button type="button" class="btn-ghost" id="archive-format-btn" data-value="zip"
+                onclick="toggleDropdown(event, 'archive-format-dropdown')" aria-haspopup="listbox" aria-expanded="false">
+          <span id="archive-format-label">.ZIP (standard)</span> <span class="caret-down">&#9662;</span>
+        </button>
+        <div id="archive-format-dropdown" class="theme-dropdown" role="listbox" hidden>
+          <div class="theme-item selected" data-value="zip" onclick="selectArchiveFormat('zip', '.ZIP (standard)')">.ZIP (standard)</div>
+          <div class="theme-item" data-value="tar" onclick="selectArchiveFormat('tar', '.TAR (uncompressed)')">.TAR (uncompressed)</div>
+          <div class="theme-item" data-value="gzip" onclick="selectArchiveFormat('gzip', '.TAR.GZ (compressed)')">.TAR.GZ (compressed)</div>
+          <div class="theme-item" data-value="7z" onclick="selectArchiveFormat('7z', '.7Z (high compression)')">.7Z (high compression)</div>
+        </div>
+      </div>
       <div class="card-actions">
         <button id="btn-archive" onclick="runArchive()">Compress</button>
       </div>
@@ -495,8 +506,16 @@ function folderColor(folder) {{
   return COLORS[hash % COLORS.length];
 }}
 
+function selectArchiveFormat(value, label) {{
+  document.getElementById('archive-format-label').textContent = label;
+  document.getElementById('archive-format-btn').dataset.value = value;
+  document.querySelectorAll('#archive-format-dropdown .theme-item').forEach(el => {{
+    el.classList.toggle('selected', el.dataset.value === value);
+  }});
+  closeAllDropdowns();
+}}
 function runArchive() {{
-  const fmt = document.getElementById('archive-format').value;
+  const fmt = document.getElementById('archive-format-btn').dataset.value;
   const btn = document.getElementById('btn-archive');
   const result = document.getElementById('archive-result');
   btn.innerText = 'compressing…'; btn.disabled = true;
