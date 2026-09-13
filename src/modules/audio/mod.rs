@@ -72,23 +72,32 @@ pub async fn execute(_state: &CyberdeckState, dir: &str) -> Result<String, Strin
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
         .unwrap_or_default();
-        write_to(&base_f, &out)?;
+        write_to(&base_f, &crate::modules::utils::code_block("text", &out))?;
     }
 
     // 5. PulseAudio Layer
     write_to(&base_f, "\n## 🔊 PULSE COMPAT LAYER\n")?;
     let pactl_info = run_cmd(&["pactl", "info"]);
-    write_to(&base_f, &pactl_info)?;
-    write_to(&base_f, &run_cmd(&["pactl", "list", "short", "sinks"]))?;
-    write_to(&base_f, &run_cmd(&["pactl", "list", "short", "sources"]))?;
+    let pactl_sinks = run_cmd(&["pactl", "list", "short", "sinks"]);
+    let pactl_sources = run_cmd(&["pactl", "list", "short", "sources"]);
+    write_to(&base_f, &crate::modules::utils::code_block("text", &pactl_info))?;
+    write_to(&base_f, &crate::modules::utils::code_block("text", &pactl_sinks))?;
+    write_to(&base_f, &crate::modules::utils::code_block("text", &pactl_sources))?;
 
     // 6. Pipewire Graph
     write_to(&base_f, "\n## 🔗 PIPEWIRE NODE GRAPH\n")?;
     let nodes = run_cmd(&["pw-cli", "ls", "Node"]);
     let links = run_cmd(&["pw-cli", "ls", "Link"]);
 
-    fs::write(&graph_f, format!("{}{}", nodes, links)).map_err(|e| e.to_string())?;
-    write_to(&base_f, &format!("Graph exported to: {}\n", graph_f))?;
+    fs::write(
+        &graph_f,
+        format!(
+            "# Pipewire Node Graph\n\n## Nodes\n{}\n## Links\n{}",
+            crate::modules::utils::code_block("text", &nodes),
+            crate::modules::utils::code_block("text", &links),
+        ),
+    ).map_err(|e| e.to_string())?;
+    write_to(&base_f, &format!("Graph exported to: `{}`\n", graph_f))?;
 
     // 7. Hardware & Integration
     write_to(&base_f, "\n## 🎛️ AUDIO HARDWARE\n")?;
@@ -102,19 +111,22 @@ pub async fn execute(_state: &CyberdeckState, dir: &str) -> Result<String, Strin
     .output()
     .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
     .unwrap_or_default();
-    write_to(&base_f, &lspci_audio)?;
-    write_to(&base_f, &lsusb_audio)?;
+    write_to(&base_f, &crate::modules::utils::code_block("text", &lspci_audio))?;
+    write_to(&base_f, &crate::modules::utils::code_block("text", &lsusb_audio))?;
 
     // 8. Final Reporting
+    let lscpu_out = run_cmd(&["lscpu"]);
+    let lspci_out = run_cmd(&["lspci"]);
+    let lsusb_out = run_cmd(&["lsusb"]);
     fs::write(
         &raw_f,
         format!(
-            "{}{}{}{}{}",
-            run_cmd(&["lscpu"]),
-                run_cmd(&["lspci"]),
-                run_cmd(&["lsusb"]),
-                pactl_info,
-                nodes
+            "# Audio Raw Diagnostics\n\n## lscpu\n{}\n## lspci\n{}\n## lsusb\n{}\n## pactl info\n{}\n## pw-cli ls Node\n{}\n",
+            crate::modules::utils::code_block("text", &lscpu_out),
+            crate::modules::utils::code_block("text", &lspci_out),
+            crate::modules::utils::code_block("text", &lsusb_out),
+            crate::modules::utils::code_block("text", &pactl_info),
+            crate::modules::utils::code_block("text", &nodes),
         ),
     )
     .map_err(|e| e.to_string())?;
@@ -122,11 +134,11 @@ pub async fn execute(_state: &CyberdeckState, dir: &str) -> Result<String, Strin
     let mut pf = fs::File::create(&parsed_f).map_err(|e| e.to_string())?;
     pf.write_all("# 🎧 AUDIO SUMMARY\n\n## 🔊 Active Sinks\n".as_bytes())
     .map_err(|e| e.to_string())?;
-    pf.write_all(run_cmd(&["pactl", "list", "short", "sinks"]).as_bytes())
+    pf.write_all(crate::modules::utils::code_block("text", &pactl_sinks).as_bytes())
     .map_err(|e| e.to_string())?;
     pf.write_all("\n## 🎤 Active Sources\n".as_bytes())
     .map_err(|e| e.to_string())?;
-    pf.write_all(run_cmd(&["pactl", "list", "short", "sources"]).as_bytes())
+    pf.write_all(crate::modules::utils::code_block("text", &pactl_sources).as_bytes())
     .map_err(|e| e.to_string())?;
 
     write_to(&base_f, "\n## 🧠 AUDIO HEALTH\n")?;
