@@ -24,6 +24,7 @@ pub fn layout(active_theme: &str, theme_options: &str, nav_active: &str, body: &
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CYBERDECK</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <link rel="stylesheet" href="/vendor/tokens.css">
 <style id="theme-vars"></style>
 <link rel="stylesheet" href="/static/ui.css">
@@ -40,9 +41,15 @@ pub fn layout(active_theme: &str, theme_options: &str, nav_active: &str, body: &
       {nav_scans}
       {nav_reports}
     </nav>
-    <select id="theme-picker" onchange="applyTheme(this.value)">
-      {theme_options}
-    </select>
+    <div class="theme-dropdown-wrap">
+      <button type="button" class="btn-ghost" id="theme-picker-btn" onclick="toggleThemeDropdown(event)" aria-haspopup="listbox" aria-expanded="false">
+        <span id="theme-picker-label">THEME</span> <span class="caret-down">&#9662;</span>
+      </button>
+      <div id="theme-dropdown" class="theme-dropdown" role="listbox" hidden>
+        {theme_options}
+        <div id="custom-theme-group" hidden></div>
+      </div>
+    </div>
     <button class="btn-ghost" onclick="openThemeCreator()" title="Build a custom theme (saved to this browser only)">+ Theme</button>
   </div>
 </header>
@@ -92,20 +99,44 @@ function applyTheme(name) {{
   if (name.startsWith('custom:')) {{
     const css = localStorage.getItem(CT_PREFIX + name.slice(7));
     if (css) document.getElementById('theme-vars').textContent = css;
-    localStorage.setItem('cyberdeck-theme', name);
-    return;
+  }} else {{
+    fetch('/api/cybergrid/css/' + name)
+      .then(r => r.text())
+      .then(css => {{ document.getElementById('theme-vars').textContent = css; }});
   }}
-  fetch('/api/cybergrid/css/' + name)
-    .then(r => r.text())
-    .then(css => {{ document.getElementById('theme-vars').textContent = css; }});
   localStorage.setItem('cyberdeck-theme', name);
+  document.getElementById('theme-picker-label').textContent = name.startsWith('custom:') ? name.slice(7) : name;
+  document.querySelectorAll('#theme-dropdown .theme-item').forEach(el => {{
+    el.classList.toggle('selected', el.dataset.value === name);
+  }});
 }}
+function selectTheme(name) {{
+  applyTheme(name);
+  closeThemeDropdown();
+}}
+function toggleThemeDropdown(e) {{
+  e.stopPropagation();
+  const dd = document.getElementById('theme-dropdown');
+  dd.hidden = !dd.hidden;
+  document.getElementById('theme-picker-btn').setAttribute('aria-expanded', String(!dd.hidden));
+}}
+function closeThemeDropdown() {{
+  document.getElementById('theme-dropdown').hidden = true;
+  document.getElementById('theme-picker-btn').setAttribute('aria-expanded', 'false');
+}}
+document.addEventListener('click', (e) => {{
+  const wrap = document.querySelector('.theme-dropdown-wrap');
+  if (wrap && !wrap.contains(e.target)) closeThemeDropdown();
+}});
+document.addEventListener('keydown', (e) => {{
+  if (e.key === 'Escape') closeThemeDropdown();
+}});
+
 window.addEventListener('DOMContentLoaded', () => {{
   loadCustomThemesIntoPicker();
   const saved = localStorage.getItem('cyberdeck-theme') || '{active_theme}';
-  const picker = document.getElementById('theme-picker');
-  if ([...picker.options].some(o => o.value === saved)) picker.value = saved;
-  applyTheme(picker.value);
+  const exists = document.querySelector('#theme-dropdown .theme-item[data-value="' + CSS.escape(saved) + '"]') !== null;
+  applyTheme(exists ? saved : '{active_theme}');
   restoreCatState();
 }});
 
@@ -176,27 +207,19 @@ function saveCustomTheme() {{
   if (!name) {{ alert('Name it first.'); return; }}
   localStorage.setItem(CT_PREFIX + name, customThemeCss());
   loadCustomThemesIntoPicker();
-  document.getElementById('theme-picker').value = 'custom:' + name;
   applyTheme('custom:' + name);
   closeThemeCreator();
 }}
 function loadCustomThemesIntoPicker() {{
-  const picker = document.getElementById('theme-picker');
-  let group = document.getElementById('custom-theme-group');
-  if (!group) {{
-    group = document.createElement('optgroup');
-    group.id = 'custom-theme-group';
-    group.label = 'CUSTOM (this browser)';
-    picker.appendChild(group);
-  }}
-  group.innerHTML = '';
-  Object.keys(localStorage).filter(k => k.startsWith(CT_PREFIX)).forEach(k => {{
-    const name = k.slice(CT_PREFIX.length);
-    const opt = document.createElement('option');
-    opt.value = 'custom:' + name;
-    opt.textContent = name;
-    group.appendChild(opt);
-  }});
+  const group = document.getElementById('custom-theme-group');
+  const keys = Object.keys(localStorage).filter(k => k.startsWith(CT_PREFIX));
+  if (!keys.length) {{ group.hidden = true; group.innerHTML = ''; return; }}
+  group.hidden = false;
+  group.innerHTML = '<div class="theme-group-label">Custom (this browser)</div>' +
+    keys.map(k => {{
+      const name = k.slice(CT_PREFIX.length);
+      return '<div class="theme-item" data-value="custom:' + name + '" onclick="selectTheme(\'custom:' + name + '\')">' + name + '</div>';
+    }}).join('');
 }}
 </script>
 </body>
@@ -455,7 +478,7 @@ function loadFileList() {{
     body.innerHTML = files.map(f => {{
       const folder = f.folder
         ? '<span class="folder-chip" style="--chip-color: var(--' + folderColor(f.folder) + ');">' + f.folder + '</span>'
-        : '<span class="muted" style="font-size:0.7rem;">root</span>';
+        : '<span class="folder-chip folder-chip-root">root</span>';
       const view = f.is_md
         ? '<a class="btn-link" href="/reports/' + f.path + '" onclick="event.preventDefault(); openViewer(\'' + f.path + '\')">View</a>'
         : '<span class="muted">binary</span>';
@@ -501,7 +524,7 @@ fn folder_chip(folder: Option<&str>) -> String {
                 r#"<span class="folder-chip" style="--chip-color: var(--{color});">{f}</span>"#
             )
         }
-        None => r#"<span class="muted" style="font-size:0.7rem;">root</span>"#.to_string(),
+        None => r#"<span class="folder-chip folder-chip-root">root</span>"#.to_string(),
     }
 }
 

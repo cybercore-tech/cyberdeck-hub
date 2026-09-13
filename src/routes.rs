@@ -25,6 +25,10 @@ fn page(nav_active: &str, body: String) -> Html<String> {
     let active = schema.active.clone();
     let families = crate::cybergrid::theme_families();
 
+    // A custom dropdown, not a native <select> — browsers force their own
+    // system-blue highlight on the selected/hovered <option> with no
+    // author override (Chromium ignores background-color there entirely),
+    // which never matched the theme no matter what CSS was tried.
     let options: String = families
         .iter()
         .map(|(family, slugs)| {
@@ -36,14 +40,16 @@ fn page(nav_active: &str, body: String) -> Html<String> {
                 // needs a rebuild before it's real).
                 .filter(|slug| schema.theme(slug).is_some())
                 .map(|slug| {
-                    let selected = if **slug == active { " selected" } else { "" };
-                    format!("<option value=\"{slug}\"{selected}>{slug}</option>")
+                    let sel = if **slug == active { " selected" } else { "" };
+                    format!(
+                        r#"<div class="theme-item{sel}" data-value="{slug}" onclick="selectTheme('{slug}')">{slug}</div>"#
+                    )
                 })
                 .collect();
             if items.is_empty() {
                 String::new()
             } else {
-                format!(r#"<optgroup label="{family}">{items}</optgroup>"#)
+                format!(r#"<div class="theme-group-label">{family}</div>{items}"#)
             }
         })
         .collect();

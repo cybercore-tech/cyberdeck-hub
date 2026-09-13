@@ -1,0 +1,20 @@
+[Unit]
+Description=Cyberdeck Diagnostic Output — markdown deck over cyberdeck's diagnostics (127.0.0.1:8766)
+Documentation=https://github.com/darkstardevx/cyberdesk
+After=network.target cyberdeck.service
+
+[Service]
+Type=simple
+User=raven
+Group=raven
+Environment=CYBERDESK_ROOT=/home/raven/.sysops/cyberdeck/diagnostics
+Environment=CYBERDESK_BIND=127.0.0.1:8766
+Environment="CYBERDESK_SITE_NAME=CYBERDECK Diagnostic Reports Deck"
+Environment="CYBERDESK_LOGO_TEXT=CYBERDECK Diagnostic Reports Deck"
+Environment=CYBERDESK_FAVICON_PATH=/home/raven/.sysops/cyberdeck/assets/favicon.svg
+ExecStart=/home/raven/.cargo-target/release/cyberdesk
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
