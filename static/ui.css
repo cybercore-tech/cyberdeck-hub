@@ -17,6 +17,16 @@
    visible. Keep this reset above every other rule in the file. */
 [hidden] { display: none !important; }
 
+/* Uppercase, letter-spaced chrome text everywhere — the terminal/HUD feel
+   this app is going for. Scoped to real UI chrome (buttons, titlebars,
+   badges, card titles) rather than a blanket `body *` rule, so actual
+   report *content* rendered in `.markdown-body` stays normal-case and
+   readable as prose/command output, not shouted. */
+button, .btn-link, .btn-ghost, .titlebar-text, .card-title, .field-label {
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
 html {
   scrollbar-width: thin;
   scrollbar-color: var(--purple) var(--bg);
@@ -126,16 +136,31 @@ body {
 
 main { max-width: 1300px; margin: 0 auto; padding: 1.5rem; }
 
+/* Page header as its own glowing pane — a translucent purple panel, not
+   just styled text sitting bare on the page background. */
+.dash-head {
+  background: color-mix(in srgb, var(--purple) 10%, var(--bg));
+  border: 1px solid color-mix(in srgb, var(--purple) 40%, transparent);
+  border-radius: 4px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 0 28px -6px color-mix(in srgb, var(--purple) 55%, transparent),
+              inset 0 1px 0 color-mix(in srgb, var(--fg) 6%, transparent);
+}
 .dash-head h1 {
   margin: 0 0 0.3rem;
-  background: linear-gradient(90deg, var(--cyan), var(--purple), var(--pink), var(--cyan));
-  background-size: 300% 100%;
-  -webkit-background-clip: text; background-clip: text; color: transparent;
-  filter: drop-shadow(0 0 14px color-mix(in srgb, var(--purple) 45%, transparent));
+  font-size: 1.4rem;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--purple);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--purple) 60%, transparent);
 }
 @media (prefers-reduced-motion: no-preference) {
-  .dash-head h1 { animation: hue-drift 8s linear infinite; }
-  @keyframes hue-drift { to { background-position: 300% 0; } }
+  .dash-head h1 { animation: title-pulse 3s ease-in-out infinite; }
+  @keyframes title-pulse {
+    0%, 100% { text-shadow: 0 0 10px color-mix(in srgb, var(--purple) 55%, transparent); }
+    50% { text-shadow: 0 0 20px color-mix(in srgb, var(--purple) 85%, transparent); }
+  }
 }
 .muted { color: var(--muted); }
 
@@ -251,6 +276,8 @@ details[open] > .cat-head .cat-caret { transform: rotate(90deg); }
   border-radius: 10px;
   padding: 0.1rem 0.55rem;
   font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 /* "root" means the report has no folder of its own — a square (not
    pill-rounded) red badge that pulses, standing apart from the calm
