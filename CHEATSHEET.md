@@ -140,3 +140,17 @@ uppercased, unlike everything else in this list.
   --pink --purple --cyan --orange --red --panel --line --muted`) injected
   into `<style id="theme-vars">` at runtime — never hardcode a hex color
   in a new rule, use `var(--role)` so theme-switching still repaints it.
+- `body { font-size: 13px; }` is the root — nearly every other size in
+  this file is `rem`, so this one line controls overall text density.
+  Change it here, not by hunting individual rules, if things feel too
+  big/small again.
+- Font is self-hosted **JetBrainsMono Nerd Font**
+  (`static/fonts/jbm-nerd-*.woff2`, declared via `@font-face` at the top
+  of `ui.css` under the family name `"JBMono Nerd"`), layered in front of
+  cybercore's own `--font-mono` rather than editing that shared file.
+- A pill/badge look (filled + bordered + optionally glowing) is the
+  house style for anything meant to draw the eye — `.dash-head h1`,
+  `.folder-chip`, `.badge`, `.theme-item.selected` all use the same
+  `color-mix(in srgb, var(--role) N%, transparent)` background +
+  matching border recipe. Reuse that pattern for new "highlighted" UI
+  rather than inventing a new treatment.
