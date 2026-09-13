@@ -91,7 +91,13 @@ body {
 #theme-picker {
   background: var(--panel); color: var(--fg); border: 1px solid var(--line);
   padding: 0.4rem 0.6rem; border-radius: 3px; font-family: inherit;
+  text-transform: uppercase; letter-spacing: 0.3px; font-size: 0.78rem;
 }
+#theme-picker optgroup {
+  color: var(--cyan); font-style: normal; font-weight: 700;
+  text-transform: uppercase; background: var(--bg);
+}
+#theme-picker option { color: var(--fg); background: var(--panel); text-transform: uppercase; }
 
 .btn-ghost {
   background: transparent; color: var(--cyan); border: 1px solid var(--line);
@@ -113,12 +119,19 @@ main { max-width: 1300px; margin: 0 auto; padding: 1.5rem; }
 .cat-head {
   display: flex; align-items: baseline; gap: 0.6rem; margin-bottom: 0.75rem;
   border-bottom: 1px solid var(--line); padding-bottom: 0.4rem;
+  cursor: pointer; list-style: none; user-select: none;
 }
+.cat-head::-webkit-details-marker { display: none; }
 .cat-head h2 {
   margin: 0; font-size: 1rem; letter-spacing: 0.4px; text-transform: uppercase;
   color: var(--fg); text-shadow: 0 0 8px color-mix(in srgb, var(--purple) 35%, transparent);
 }
 .cat-count { font-size: 0.75rem; color: var(--muted); }
+.cat-caret {
+  display: inline-block; color: var(--cat-color, var(--muted));
+  transition: transform 0.15s ease; font-size: 0.8em;
+}
+details[open] > .cat-head .cat-caret { transform: rotate(90deg); }
 
 .grid {
   display: grid;
@@ -171,12 +184,47 @@ main { max-width: 1300px; margin: 0 auto; padding: 1.5rem; }
   background: var(--bg); color: var(--cyan); border: 1px solid var(--line);
   padding: 0.35rem 0.7rem; border-radius: 3px; font-family: inherit; font-size: 0.78rem;
   cursor: pointer; text-decoration: none;
+  display: inline-flex; align-items: center; justify-content: center; line-height: 1.2;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
 }
 .card-actions button:hover, .card-actions a.btn-link:hover {
   border-color: var(--cyan); box-shadow: 0 0 10px color-mix(in srgb, var(--cyan) 30%, transparent);
 }
 .card-actions button:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+
+/* --------------------------------------------------------------------------
+   .btn-link as a real standalone button — it only had styling when
+   nested inside .card-actions before, so every "View"/"View Output" link
+   in the Reports table and Files viewer (neither wrapped in
+   .card-actions) rendered as a plain default underlined anchor.
+   -------------------------------------------------------------------------- */
+.btn-link {
+  display: inline-flex; align-items: center; justify-content: center; line-height: 1.2;
+  background: color-mix(in srgb, var(--cyan) 12%, transparent);
+  color: var(--cyan); border: 1px solid color-mix(in srgb, var(--cyan) 45%, transparent);
+  padding: 0.3rem 0.7rem; border-radius: 3px; font-size: 0.78rem;
+  text-decoration: none; cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.btn-link:hover {
+  background: color-mix(in srgb, var(--cyan) 22%, transparent);
+  border-color: var(--cyan);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--cyan) 30%, transparent);
+}
+
+/* --------------------------------------------------------------------------
+   Folder chips — colored, translucent, a stable color per folder name
+   (see present::folder_color / the JS folderColor() mirror).
+   -------------------------------------------------------------------------- */
+.folder-chip {
+  display: inline-block;
+  background: color-mix(in srgb, var(--chip-color, var(--muted)) 16%, transparent);
+  color: var(--chip-color, var(--muted));
+  border: 1px solid color-mix(in srgb, var(--chip-color, var(--muted)) 40%, transparent);
+  border-radius: 10px;
+  padding: 0.1rem 0.55rem;
+  font-size: 0.72rem;
+}
 
 /* --------------------------------------------------------------------------
    Windows — same titlebar-and-dots chrome as Dockspace
@@ -279,7 +327,10 @@ select.text-input option {
 .markdown-body a { color: var(--cyan); }
 .markdown-body strong { color: var(--acid); }
 .markdown-body code {
-  background: var(--panel); border: 1px solid var(--line); border-radius: 3px;
+  background: color-mix(in srgb, var(--cyan) 12%, var(--panel));
+  color: var(--cyan);
+  border: 1px solid color-mix(in srgb, var(--cyan) 35%, transparent);
+  border-radius: 3px;
   padding: 0.1rem 0.35rem; font-size: 0.85em;
 }
 .markdown-body pre {
@@ -327,6 +378,20 @@ select.text-input option {
 }
 .win-close:hover { color: var(--red); border-color: var(--red); background: color-mix(in srgb, var(--red) 10%, transparent); }
 .titlebar { position: relative; }
+
+/* --------------------------------------------------------------------------
+   Custom theme creator
+   -------------------------------------------------------------------------- */
+.field-label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.3rem; }
+.ct-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.6rem; }
+.ct-swatch {
+  display: flex; flex-direction: column; gap: 0.3rem; align-items: center;
+  font-size: 0.72rem; color: var(--muted); text-transform: uppercase;
+}
+.ct-swatch input[type="color"] {
+  width: 100%; height: 2.2rem; border: 1px solid var(--line); border-radius: 3px;
+  background: var(--bg); cursor: pointer; padding: 2px;
+}
 
 @media (max-width: 640px) {
   .topbar { flex-direction: column; gap: 0.6rem; align-items: stretch; }

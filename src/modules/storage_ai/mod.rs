@@ -25,20 +25,6 @@ pub async fn execute(_state: &CyberdeckState, dir: &str) -> Result<String, Strin
     let base_f = format!("{}/storage_ai.md", dir);
     let timestamp = crate::modules::utils::now_human();
 
-    // 1. Initialize Subdirectory Tree
-    let subdirs = [
-        "nvme",
-        "ssd",
-        "hdd",
-        "us",
-        ".as_bytes()raw",
-        "filesystems",
-        "smart",
-    ];
-    for sd in subdirs {
-        fs::create_dir_all(format!("{}/{}", dir, sd)).map_err(|e| e.to_string())?;
-    }
-
     let mut report = format!(
         "# 💾 CYBERDECK: STORAGE INTELLIGENCE (AI MODE)\n\nTimestamp: {}\n\n",
         timestamp

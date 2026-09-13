@@ -3,6 +3,8 @@
 //! convention as Dockspace's `views.rs`).
 
 use crate::hub::{Checked, Health, Probe};
+use crate::present::folder_color;
+use crate::routes::ReportEntry;
 
 pub fn escape(s: &str) -> String {
     s.replace('&', "&amp;")
@@ -41,11 +43,34 @@ pub fn layout(active_theme: &str, theme_options: &str, nav_active: &str, body: &
     <select id="theme-picker" onchange="applyTheme(this.value)">
       {theme_options}
     </select>
+    <button class="btn-ghost" onclick="openThemeCreator()" title="Build a custom theme (saved to this browser only)">+ Theme</button>
   </div>
 </header>
 <main>
 {body}
 </main>
+<div id="theme-creator-overlay" class="viewer-overlay" hidden onclick="if(event.target===this) closeThemeCreator()">
+  <div class="window viewer-window">
+    <div class="titlebar">
+      <span class="dot dot-a"></span><span class="dot dot-b"></span><span class="dot dot-c"></span>
+      <span class="titlebar-text">custom theme (this browser only)</span>
+      <a href="javascript:void(0)" class="win-close" onclick="closeThemeCreator()" title="Close">&#10005;</a>
+    </div>
+    <div class="viewer-body">
+      <div class="markdown-body" style="max-height:none;">
+        <p class="muted" style="margin-top:0;">Not added to the shared CYBERGRID palette (that's compiled in and needs a rebuild) — this is a local custom theme saved to this browser's storage only.</p>
+        <label class="field-label" for="ct-name">Name</label>
+        <input id="ct-name" class="text-input" placeholder="my-custom-theme" style="width:100%;margin-bottom:0.75rem;">
+        <div id="ct-swatches" class="ct-grid"></div>
+      </div>
+      <div class="viewer-actions">
+        <button onclick="previewCustomTheme()">Preview</button>
+        <button onclick="saveCustomTheme()">Save</button>
+        <button onclick="closeThemeCreator()">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div id="viewer-overlay" class="viewer-overlay" hidden onclick="if(event.target===this) closeViewer()">
   <div class="window viewer-window">
     <div class="titlebar">
@@ -64,16 +89,39 @@ pub fn layout(active_theme: &str, theme_options: &str, nav_active: &str, body: &
 </div>
 <script>
 function applyTheme(name) {{
+  if (name.startsWith('custom:')) {{
+    const css = localStorage.getItem(CT_PREFIX + name.slice(7));
+    if (css) document.getElementById('theme-vars').textContent = css;
+    localStorage.setItem('cyberdeck-theme', name);
+    return;
+  }}
   fetch('/api/cybergrid/css/' + name)
     .then(r => r.text())
     .then(css => {{ document.getElementById('theme-vars').textContent = css; }});
   localStorage.setItem('cyberdeck-theme', name);
 }}
 window.addEventListener('DOMContentLoaded', () => {{
+  loadCustomThemesIntoPicker();
   const saved = localStorage.getItem('cyberdeck-theme') || '{active_theme}';
-  document.getElementById('theme-picker').value = saved;
-  applyTheme(saved);
+  const picker = document.getElementById('theme-picker');
+  if ([...picker.options].some(o => o.value === saved)) picker.value = saved;
+  applyTheme(picker.value);
+  restoreCatState();
 }});
+
+// Hub category sections are collapsible <details> — but the whole
+// #hub-grid gets replaced every 10s by the htmx status poll, which would
+// silently re-expand anything the user just collapsed. Persist per-
+// category state in localStorage and re-apply it after every swap.
+function saveCatState(details) {{
+  localStorage.setItem('cyberdeck-cat-' + details.dataset.cat, details.open ? '1' : '0');
+}}
+function restoreCatState() {{
+  document.querySelectorAll('details.cat-section[data-cat]').forEach(d => {{
+    const saved = localStorage.getItem('cyberdeck-cat-' + d.dataset.cat);
+    if (saved !== null) d.open = saved === '1';
+  }});
+}}
 
 function openViewer(path) {{
   const overlay = document.getElementById('viewer-overlay');
@@ -83,7 +131,11 @@ function openViewer(path) {{
   content.innerHTML = 'loading…';
   overlay.hidden = false;
   fetch('/api/reports/' + path)
-    .then(r => r.text())
+    .then(r => {{
+      const title = r.headers.get('X-Report-Title');
+      if (title) document.getElementById('viewer-title').textContent = title;
+      return r.text();
+    }})
     .then(html => {{ content.innerHTML = html; }})
     .catch(() => {{ content.textContent = 'failed to load'; }});
 }}
@@ -91,8 +143,61 @@ function closeViewer() {{
   document.getElementById('viewer-overlay').hidden = true;
 }}
 document.addEventListener('keydown', e => {{
-  if (e.key === 'Escape') closeViewer();
+  if (e.key === 'Escape') {{ closeViewer(); closeThemeCreator(); }}
 }});
+
+// --- Custom themes: browser-local only, not part of the compiled-in
+// CYBERGRID schema (that needs a rebuild to pick up new theme files) ---
+const CT_ROLES = ['bg', 'fg', 'acid', 'pink', 'purple', 'cyan', 'orange', 'red', 'panel', 'line', 'muted'];
+const CT_PREFIX = 'cyberdeck-custom-theme-';
+
+function openThemeCreator() {{
+  const grid = document.getElementById('ct-swatches');
+  const computed = getComputedStyle(document.documentElement);
+  grid.innerHTML = CT_ROLES.map(role => {{
+    const current = computed.getPropertyValue('--' + role).trim() || '#888888';
+    return '<label class="ct-swatch">' + role +
+      '<input type="color" id="ct-' + role + '" value="' + current + '"></label>';
+  }}).join('');
+  document.getElementById('theme-creator-overlay').hidden = false;
+}}
+function closeThemeCreator() {{
+  const el = document.getElementById('theme-creator-overlay');
+  if (el) el.hidden = true;
+}}
+function customThemeCss() {{
+  return ':root{{' + CT_ROLES.map(role => '--' + role + ':' + document.getElementById('ct-' + role).value + ';').join('') + '}}';
+}}
+function previewCustomTheme() {{
+  document.getElementById('theme-vars').textContent = customThemeCss();
+}}
+function saveCustomTheme() {{
+  const name = document.getElementById('ct-name').value.trim();
+  if (!name) {{ alert('Name it first.'); return; }}
+  localStorage.setItem(CT_PREFIX + name, customThemeCss());
+  loadCustomThemesIntoPicker();
+  document.getElementById('theme-picker').value = 'custom:' + name;
+  applyTheme('custom:' + name);
+  closeThemeCreator();
+}}
+function loadCustomThemesIntoPicker() {{
+  const picker = document.getElementById('theme-picker');
+  let group = document.getElementById('custom-theme-group');
+  if (!group) {{
+    group = document.createElement('optgroup');
+    group.id = 'custom-theme-group';
+    group.label = 'CUSTOM (this browser)';
+    picker.appendChild(group);
+  }}
+  group.innerHTML = '';
+  Object.keys(localStorage).filter(k => k.startsWith(CT_PREFIX)).forEach(k => {{
+    const name = k.slice(CT_PREFIX.length);
+    const opt = document.createElement('option');
+    opt.value = 'custom:' + name;
+    opt.textContent = name;
+    group.appendChild(opt);
+  }});
+}}
 </script>
 </body>
 </html>"#,
@@ -188,10 +293,10 @@ pub fn hub_sections(checked: &[Checked]) -> String {
                 .collect();
             let count = checked.iter().filter(|c| &c.tool.category == cat).count();
             format!(
-                r#"<section class="cat-section">
-  <div class="cat-head" style="--cat-color: var(--{color});"><h2>{cat}</h2><span class="cat-count">{count}</span></div>
+                r#"<details class="cat-section" data-cat="{cat}" open ontoggle="saveCatState(this)">
+  <summary class="cat-head" style="--cat-color: var(--{color});"><span class="cat-caret">&#9656;</span><h2>{cat}</h2><span class="cat-count">{count}</span></summary>
   <div class="grid">{cards}</div>
-</section>"#
+</details>"#
             )
         })
         .collect()
@@ -207,7 +312,7 @@ pub fn dashboard(checked: &[Checked]) -> String {
   <h1>Tool Fleet</h1>
   <p class="muted">{up} / {total} reporting up — auto-refreshes every 10s.</p>
 </div>
-<div id="hub-grid" hx-get="/partial/hub" hx-trigger="every 10s" hx-swap="innerHTML">
+<div id="hub-grid" hx-get="/partial/hub" hx-trigger="every 10s" hx-swap="innerHTML" hx-on::after-swap="restoreCatState()">
 {sections}
 </div>"#
     )
@@ -286,7 +391,9 @@ pub fn scans_page() -> String {
       <div class="card-actions" style="margin-bottom:0.75rem;">
         <button onclick="loadFileList()">Refresh File List</button>
       </div>
-      <table class="res-table"><tbody id="file-list-body">
+      <table class="res-table">
+        <thead><tr><th>Folder</th><th>Report</th><th>View</th></tr></thead>
+        <tbody id="file-list-body">
         <tr><td><div class="empty-state">click "Refresh File List" to scan diagnostics/</div></td></tr>
       </tbody></table>
     </div>
@@ -342,19 +449,27 @@ function loadFileList() {{
   body.innerHTML = '<tr><td>loading…</td></tr>';
   fetch('/cyberdeck/api/list').then(r => r.json()).then(files => {{
     if (!files.length) {{ body.innerHTML = '<tr><td><div class="empty-state">diagnostics/ is empty</div></td></tr>'; return; }}
-    // Paths come back recursive (e.g. "cpu/cpu.md", "interfaces/wlp2s0.md")
-    // — split each into its folder and filename so nested output isn't
-    // silently invisible the way a flat, top-level-only listing was.
+    // Server already resolved each file's real title (its own `# Heading`,
+    // not the raw filename) and folder — this just renders it, matching
+    // the same folder-color hash used on the Reports page.
     body.innerHTML = files.map(f => {{
-      const slash = f.lastIndexOf('/');
-      const folder = slash === -1 ? '<span class="muted">(root)</span>' : f.slice(0, slash);
-      const name = slash === -1 ? f : f.slice(slash + 1);
-      const view = f.endsWith('.md')
-        ? '<a class="btn-link" href="/reports/' + f + '" onclick="event.preventDefault(); openViewer(\'' + f + '\')">View</a>'
+      const folder = f.folder
+        ? '<span class="folder-chip" style="--chip-color: var(--' + folderColor(f.folder) + ');">' + f.folder + '</span>'
+        : '<span class="muted" style="font-size:0.7rem;">root</span>';
+      const view = f.is_md
+        ? '<a class="btn-link" href="/reports/' + f.path + '" onclick="event.preventDefault(); openViewer(\'' + f.path + '\')">View</a>'
         : '<span class="muted">binary</span>';
-      return '<tr><td class="muted" style="width:9rem;">' + folder + '</td><td><code>' + name + '</code></td><td>' + view + '</td></tr>';
+      return '<tr><td>' + folder + '</td><td>' + f.title +
+        '<div class="muted" style="font-size:0.7rem;">' + f.path + '</div></td><td>' + view + '</td></tr>';
     }}).join('');
   }}).catch(() => {{ body.innerHTML = '<tr><td>failed to list files</td></tr>'; }});
+}}
+
+function folderColor(folder) {{
+  const COLORS = ['cyan', 'purple', 'pink', 'orange', 'acid', 'red'];
+  let hash = 0;
+  for (let i = 0; i < folder.length; i++) {{ hash = (hash * 31 + folder.charCodeAt(i)) >>> 0; }}
+  return COLORS[hash % COLORS.length];
 }}
 
 function runArchive() {{
@@ -378,20 +493,50 @@ function runArchive() {{
     )
 }
 
-pub fn reports_page(entries: &[(String, u64, String)]) -> String {
+fn folder_chip(folder: Option<&str>) -> String {
+    match folder {
+        Some(f) => {
+            let color = folder_color(f);
+            format!(
+                r#"<span class="folder-chip" style="--chip-color: var(--{color});">{f}</span>"#
+            )
+        }
+        None => r#"<span class="muted" style="font-size:0.7rem;">root</span>"#.to_string(),
+    }
+}
+
+fn garbled_badge(garbled: bool) -> &'static str {
+    if garbled {
+        r#" <span class="badge status-partial" title="This report had a broken code fence (a missing tool's fallback text glued against the closing ```) that swallowed everything after it — auto-repaired at view time, the file on disk is untouched.">AUTO-FIXED</span>"#
+    } else {
+        ""
+    }
+}
+
+pub fn reports_page(entries: &[ReportEntry]) -> String {
     let rows: String = if entries.is_empty() {
-        r#"<tr><td colspan="3"><div class="empty-state">No reports yet — run a scan first.</div></td></tr>"#
+        r#"<tr><td colspan="4"><div class="empty-state">No reports yet — run a scan first.</div></td></tr>"#
             .to_string()
     } else {
         entries
             .iter()
-            .map(|(name, size, modified)| {
+            .map(|e| {
                 format!(
                     r#"<tr>
-  <td><a class="btn-link" href="/reports/{name}" onclick="event.preventDefault(); openViewer('{name}')">{name}</a></td>
-  <td>{size} bytes</td>
+  <td>{folder}</td>
+  <td>
+    <a class="btn-link" href="/reports/{path}" onclick="event.preventDefault(); openViewer('{path}')">{title}</a>{garbled}
+    <div class="muted" style="font-size:0.7rem;">{path}</div>
+  </td>
+  <td>{size}</td>
   <td class="muted">{modified}</td>
-</tr>"#
+</tr>"#,
+                    folder = folder_chip(e.folder.as_deref()),
+                    path = e.path,
+                    title = escape(&e.title),
+                    garbled = garbled_badge(e.garbled),
+                    size = e.size_human,
+                    modified = e.modified_human,
                 )
             })
             .collect()
@@ -405,7 +550,7 @@ pub fn reports_page(entries: &[(String, u64, String)]) -> String {
   <a class="btn-ghost" style="padding:0.1rem 0.4rem;" href="http://127.0.0.1:8766" target="_blank" rel="noopener">Diagnostic Reports deck</a> — this list is the raw quick view.</p>
 </div>
 <table class="res-table">
-  <thead><tr><th>File</th><th>Size</th><th>Modified</th></tr></thead>
+  <thead><tr><th>Folder</th><th>Report</th><th>Size</th><th>Modified</th></tr></thead>
   <tbody>{rows}</tbody>
 </table>"#
     )
@@ -416,23 +561,26 @@ pub fn reports_page(entries: &[(String, u64, String)]) -> String {
 /// into one undifferentiated grey box.
 pub fn render_markdown(content: &str) -> String {
     use pulldown_cmark::{html, Options, Parser};
+    let (repaired, _changed) = crate::sanitize::sanitize(content);
     let mut opts = Options::empty();
     opts.insert(Options::ENABLE_TABLES);
     opts.insert(Options::ENABLE_STRIKETHROUGH);
-    let parser = Parser::new_ext(content, opts);
+    let parser = Parser::new_ext(&repaired, opts);
     let mut html_out = String::new();
     html::push_html(&mut html_out, parser);
     html_out
 }
 
-pub fn report_view(name: &str, content: &str) -> String {
+pub fn report_view(title: &str, path: &str, content: &str) -> String {
     format!(
         r#"<div class="dash-head">
-  <h1>{name}</h1>
+  <h1>{title}</h1>
+  <p class="muted"><code>diagnostics/{path}</code></p>
   <p><a class="btn-ghost" href="/reports">&larr; back to reports</a></p>
 </div>
 <div class="markdown-body">{}</div>"#,
-        render_markdown(content)
+        render_markdown(content),
+        title = escape(title),
     )
 }
 

@@ -55,13 +55,13 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
     println!("💾 DISKS:");
     let lsblk = run_cmd("lsblk", &["-d", "-o", "NAME,SIZE,MODEL"]);
     print!("{}", lsblk);
-    report.push_str(&format!("## 💾 Disks\n```text\n{}```\n\n", lsblk));
+    report.push_str(&format!("## 💾 Disks\n{}\n", crate::modules::utils::code_block("text", &lsblk)));
 
     // 4. Network
     println!("🌐 NETWORK:");
     let ip = run_cmd("ip", &["-br", "a"]);
     print!("{}", ip);
-    report.push_str(&format!("## 🌐 Network\n```text\n{}```\n\n", ip));
+    report.push_str(&format!("## 🌐 Network\n{}\n", crate::modules::utils::code_block("text", &ip)));
 
     // 5. Power
     println!("🔋 POWER:");
@@ -70,7 +70,7 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
         let first_dev = power.lines().next().unwrap_or("");
         let info = run_cmd("upower", &["-i", first_dev]);
         println!("{}", info);
-        report.push_str(&format!("## 🔋 Power\n```text\n{}```\n\n", info));
+        report.push_str(&format!("## 🔋 Power\n{}\n", crate::modules::utils::code_block("text", &info)));
     }
 
     println!("====================================");

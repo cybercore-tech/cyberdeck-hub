@@ -33,32 +33,44 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
         .unwrap_or_else(|_| "Unavailable".to_string())
     };
 
-    let mut report = format!("<div style='background:#6a0dad;color:white;padding:6px;'>🖥️ CYBERDECK: HARDWARE CORE REPORT</div>\n\nTimestamp: {}\n\n", timestamp);
+    let mut report = format!("# Hardware Core Report\n\n_Generated {}_\n\n", timestamp);
 
-    // 1. DMI / System Board
-    report.push_str("## 🏛️ System Board & BIOS\n```text\n");
+    // 1. DMI / System Board — dmidecode needs root either way; when it's
+    // not even installed (true on this box), the old code pushed a bare
+    // "Unavailable" straight against the closing fence with no newline
+    // between them, which never actually closed the block and swallowed
+    // every heading after it as literal text. `code_block()` can't do
+    // that regardless of what the command returns.
+    report.push_str("## System Board & BIOS\n");
     let dmi = run_cmd("dmidecode", &["-t", "system,baseboard,bios"]);
-    report.push_str(if dmi.contains("Permission denied") { "Access denied (run as root for full info)\n" } else { &dmi });
-    report.push_str("```\n");
+    let dmi_text = if dmi.contains("Permission denied") {
+        "Access denied (run as root for full info)".to_string()
+    } else if dmi.trim().is_empty() || dmi == "Unavailable" {
+        "dmidecode not installed on this system.".to_string()
+    } else {
+        dmi
+    };
+    report.push_str(&crate::modules::utils::code_block("text", &dmi_text));
 
     // 2. CPU Profile
-    report.push_str("\n## 🧠 Processor (CPU)\n```text\n");
-    report.push_str(&run_cmd("lscpu", &[]));
-    report.push_str("```\n");
+    report.push_str("\n## Processor (CPU)\n");
+    report.push_str(&crate::modules::utils::code_block("text", &run_cmd("lscpu", &[])));
 
     // 3. PCI/USB Bus Mapping
-    report.push_str("\n## 🧩 PCI & USB Peripherals\n");
-    report.push_str("### PCI\n```text\n");
-    report.push_str(&run_cmd("lspci", &[]));
-    report.push_str("```\n### USB\n```text\n");
-    report.push_str(&run_cmd("lsusb", &[]));
-    report.push_str("```\n");
+    report.push_str("\n## PCI & USB Peripherals\n\n### PCI\n");
+    report.push_str(&crate::modules::utils::code_block("text", &run_cmd("lspci", &[])));
+    report.push_str("\n### USB\n");
+    report.push_str(&crate::modules::utils::code_block("text", &run_cmd("lsusb", &[])));
 
     // 4. Hardware Tree (lshw fallback)
-    report.push_str("\n## ⚙️ Hardware Tree\n```text\n");
+    report.push_str("\n## Hardware Tree\n");
     let lshw = run_cmd("lshw", &["-short"]);
-    report.push_str(if lshw.is_empty() || lshw.contains("not found") { "lshw not installed or permission denied" } else { &lshw });
-    report.push_str("\n```\n");
+    let lshw_text = if lshw.trim().is_empty() {
+        "lshw not installed or permission denied.".to_string()
+    } else {
+        lshw
+    };
+    report.push_str(&crate::modules::utils::code_block("text", &lshw_text));
 
     fs::write(&base_f, report).map_err(|e| e.to_string())?;
     Ok(base_f)

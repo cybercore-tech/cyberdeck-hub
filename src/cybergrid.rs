@@ -8,6 +8,40 @@
 
 use axum::{extract::Path, http::header, response::IntoResponse, Json};
 use serde_json::{json, Value};
+use std::collections::BTreeMap;
+
+/// `family name -> slugs`, read straight off cybercore's real
+/// `schema/themes/<family>/<slug>.json` folder layout (path dep, so this
+/// is a stable relative path at compile time via `CARGO_MANIFEST_DIR`).
+/// Not derivable from the slug alone: most families share a `<family>-
+/// <word>` naming convention, but the `default` family is a grab-bag of
+/// well-known theme names (`dracula`, `nord`, ...) plus a curated
+/// re-export of a few themes that live under other families too — a
+/// slug-prefix heuristic would misfile or duplicate those.
+pub fn theme_families() -> BTreeMap<String, Vec<String>> {
+    let themes_dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../cybercore/schema/themes");
+    let mut families = BTreeMap::new();
+    let Ok(rd) = std::fs::read_dir(themes_dir) else { return families };
+    for family_entry in rd.filter_map(|e| e.ok()) {
+        if !family_entry.path().is_dir() {
+            continue;
+        }
+        let family = family_entry.file_name().to_string_lossy().into_owned();
+        let mut slugs: Vec<String> = std::fs::read_dir(family_entry.path())
+            .map(|rd| {
+                rd.filter_map(|e| e.ok())
+                    .filter_map(|e| {
+                        let name = e.file_name().to_string_lossy().into_owned();
+                        name.strip_suffix(".json").map(str::to_string)
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        slugs.sort();
+        families.insert(family, slugs);
+    }
+    families
+}
 
 fn role_map(name: &str, p: &cybercore::schema::Palette) -> Value {
     json!({

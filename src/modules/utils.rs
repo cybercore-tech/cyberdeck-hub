@@ -21,6 +21,19 @@ pub fn now_human() -> String {
 /// without needing root. A few fields (serials, `product_uuid`) really are
 /// root-only; this reports that honestly instead of coming back blank the
 /// way a failed unattended `sudo dmidecode` silently did before.
+/// Wraps `content` in a fenced code block, guaranteeing the closing fence
+/// always lands on its own line regardless of whether `content` already
+/// ends in a newline. A bare `format!("```text\n{}```", content)` breaks
+/// silently — and cascades into garbling every heading/fence after it,
+/// since the rest of the document gets swallowed as literal text inside
+/// the still-open block — the moment `content` is a fallback string like
+/// "Unavailable" with no trailing newline. That's exactly what happens on
+/// any box missing a tool the module shells out to (this one has neither
+/// `dmidecode` nor `cpupower`, for real).
+pub fn code_block(lang: &str, content: &str) -> String {
+    format!("```{lang}\n{}\n```\n", content.trim_end())
+}
+
 pub fn dmi_field(field: &str) -> String {
     fs::read_to_string(format!("/sys/class/dmi/id/{field}"))
         .ok()
