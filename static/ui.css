@@ -137,8 +137,16 @@ body {
 .theme-dropdown-wrap { position: relative; display: inline-block; }
 #theme-picker-btn { text-transform: uppercase; letter-spacing: 0.3px; font-size: 0.78rem; gap: 0.4rem; }
 .caret-down { font-size: 0.65em; color: var(--muted); }
+/* position: fixed, not absolute — an ancestor with overflow:hidden (any
+   .window) clips an absolutely-positioned descendant the moment it
+   extends past that ancestor's own bounds, which looks exactly like a
+   z-index bug (the dropdown appearing to vanish/get cut off) but isn't
+   one. `fixed` escapes that clipping since plain overflow:hidden alone
+   doesn't establish a containing block for it. top/left are set by JS
+   (toggleDropdown) from the button's real on-screen position; the
+   values below are just an unused fallback. */
 .theme-dropdown {
-  position: absolute; top: calc(100% + 6px); right: 0; z-index: 50;
+  position: fixed; top: 0; left: 0; z-index: 1001;
   width: 220px; max-height: 60vh; overflow-y: auto;
   background: var(--panel); border: 1px solid var(--line); border-radius: 3px;
   box-shadow: 0 16px 40px rgba(0,0,0,0.5);

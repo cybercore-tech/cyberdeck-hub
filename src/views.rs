@@ -127,8 +127,17 @@ function toggleDropdown(e, ddId) {{
   const dd = document.getElementById(ddId);
   const wasHidden = dd.hidden;
   closeAllDropdowns();
-  dd.hidden = !wasHidden;
-  e.currentTarget.setAttribute('aria-expanded', String(!dd.hidden));
+  if (!wasHidden) {{ e.currentTarget.setAttribute('aria-expanded', 'false'); return; }}
+  // position: fixed (see .theme-dropdown in ui.css for why) means this
+  // has to be placed in real screen coordinates by hand — it no longer
+  // auto-anchors to its wrapper the way an absolutely-positioned one did.
+  const rect = e.currentTarget.getBoundingClientRect();
+  const width = dd.offsetWidth || 220;
+  const left = Math.min(rect.left, window.innerWidth - width - 8);
+  dd.style.top = (rect.bottom + 6) + 'px';
+  dd.style.left = Math.max(8, left) + 'px';
+  dd.hidden = false;
+  e.currentTarget.setAttribute('aria-expanded', 'true');
 }}
 function closeAllDropdowns() {{
   document.querySelectorAll('.theme-dropdown').forEach(dd => {{ dd.hidden = true; }});
