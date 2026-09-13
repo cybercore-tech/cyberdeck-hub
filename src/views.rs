@@ -57,23 +57,56 @@ pub fn layout(active_theme: &str, theme_options: &str, nav_active: &str, body: &
 {body}
 </main>
 <div id="theme-creator-overlay" class="viewer-overlay" hidden onclick="if(event.target===this) closeThemeCreator()">
-  <div class="window viewer-window">
+  <div class="window viewer-window ct-window">
     <div class="titlebar">
       <span class="dot dot-a"></span><span class="dot dot-b"></span><span class="dot dot-c"></span>
       <span class="titlebar-text">custom theme (this browser only)</span>
       <a href="javascript:void(0)" class="win-close" onclick="closeThemeCreator()" title="Close">&#10005;</a>
     </div>
     <div class="viewer-body">
-      <div class="markdown-body" style="max-height:none;">
-        <p class="muted" style="margin-top:0;">Not added to the shared CYBERGRID palette (that's compiled in and needs a rebuild) — this is a local custom theme saved to this browser's storage only. The whole page repaints live as you edit — this window included.</p>
-        <label class="field-label" for="ct-name">Name</label>
-        <input id="ct-name" class="text-input" placeholder="my-custom-theme" style="width:100%;margin-bottom:0.75rem;">
-        <div class="card-actions" style="margin-bottom:0.75rem;">
-          <button type="button" onclick="document.getElementById('ct-file-input').click()">Import from file&hellip;</button>
-          <input type="file" id="ct-file-input" accept=".json,application/json" hidden onchange="loadThemeFromFile(event)">
-          <span class="muted" style="font-size:0.72rem;">a cybercore palette JSON — the same shape as any file under cybercore/schema/themes/</span>
+      <div class="ct-layout">
+        <div class="ct-controls">
+          <p class="muted" style="margin-top:0;">Not added to the shared CYBERGRID palette (that's compiled in and needs a rebuild) — this is a local custom theme saved to this browser's storage only.</p>
+          <label class="field-label" for="ct-name">Name</label>
+          <input id="ct-name" class="text-input" placeholder="my-custom-theme" style="width:100%;margin-bottom:0.75rem;">
+          <div class="card-actions" style="margin-bottom:0.75rem;">
+            <button type="button" onclick="document.getElementById('ct-file-input').click()">Import from file&hellip;</button>
+            <button type="button" onclick="exportCustomTheme()">Export to file</button>
+            <button type="button" onclick="resetSwatchesToActive()">Reset to active</button>
+            <input type="file" id="ct-file-input" accept=".json,application/json" hidden onchange="loadThemeFromFile(event)">
+          </div>
+          <p class="muted" style="font-size:0.72rem;margin-top:-0.4rem;">Import/export use the same shape as a cybercore theme file (schema/themes/&lt;family&gt;/&lt;slug&gt;.json).</p>
+          <div id="ct-swatches" class="ct-grid"></div>
         </div>
-        <div id="ct-swatches" class="ct-grid"></div>
+        <div class="ct-preview">
+          <p class="field-label" style="margin-bottom:0.6rem;">Live preview</p>
+          <div class="dash-head" style="margin-bottom:0.9rem;">
+            <h1>Sample</h1>
+            <p class="muted">This pane, and everything below it, repaints as you edit.</p>
+          </div>
+          <div class="card" style="margin-bottom:0.9rem;">
+            <div class="card-head">
+              <span class="card-title">Sample Tool</span>
+              <span class="badge status-running">ONLINE</span>
+            </div>
+            <p class="card-desc">A card looks like this under your theme.</p>
+            <p class="card-meta"><code>~/tools/example</code></p>
+            <div class="card-actions">
+              <button type="button">Run</button>
+              <a class="btn-link" href="javascript:void(0)">View</a>
+            </div>
+          </div>
+          <div style="display:flex; gap:0.4rem; flex-wrap:wrap; margin-bottom:0.9rem;">
+            <span class="folder-chip" style="--chip-color:var(--cyan);">cyan</span>
+            <span class="folder-chip" style="--chip-color:var(--purple);">purple</span>
+            <span class="folder-chip" style="--chip-color:var(--orange);">orange</span>
+            <span class="folder-chip-root">root</span>
+          </div>
+          <div class="markdown-body" style="max-height:none;">
+            <h2>Heading</h2>
+            <p>Body text with <code>inline code</code> and a <a href="javascript:void(0)">link</a>.</p>
+          </div>
+        </div>
       </div>
       <div class="viewer-actions">
         <button onclick="saveCustomTheme()">Save</button>
@@ -259,6 +292,31 @@ function loadThemeFromFile(event) {{
     previewCustomTheme();
   }};
   reader.readAsText(file);
+}}
+function exportCustomTheme() {{
+  const name = document.getElementById('ct-name').value.trim() || 'custom-theme';
+  const data = {{}};
+  Object.entries(CT_FILE_KEY_MAP).forEach(([jsonKey, role]) => {{
+    const input = document.getElementById('ct-' + role);
+    if (input) data[jsonKey] = input.value.replace('#', '');
+  }});
+  const blob = new Blob([JSON.stringify(data, null, 2)], {{ type: 'application/json' }});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name + '.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}}
+function resetSwatchesToActive() {{
+  // Reads the *actually saved* theme, not whatever's currently painted —
+  // this dialog may already be mid-preview of unsaved edits, and "reset"
+  // should mean "back to what was really active before I opened this."
+  applyTheme(localStorage.getItem('cyberdeck-theme') || '{active_theme}');
+  const computed = getComputedStyle(document.documentElement);
+  CT_ROLES.forEach(role => {{
+    const input = document.getElementById('ct-' + role);
+    if (input) input.value = computed.getPropertyValue('--' + role).trim() || '#888888';
+  }});
 }}
 function saveCustomTheme() {{
   const name = document.getElementById('ct-name').value.trim();

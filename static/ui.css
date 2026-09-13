@@ -30,6 +30,12 @@ button, .btn-link, .btn-ghost, .titlebar-text, .card-title, .field-label {
 html {
   scrollbar-width: thin;
   scrollbar-color: var(--purple) var(--bg);
+  /* Tells the browser to draw its OWN native widgets — the <input
+     type="color"> picker popup, native scrollbars, form control chrome —
+     in dark mode. Without this, that popup (which isn't our HTML/CSS at
+     all, it's the browser's own UI) defaults to a plain white background
+     no matter how dark the rest of the page is. */
+  color-scheme: dark;
 }
 
 /* Self-hosted JetBrainsMono Nerd Font — a patched terminal font (extra
@@ -500,6 +506,26 @@ select.text-input option {
 }
 .viewer-body { padding: 0; overflow: hidden; flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .viewer-body .markdown-body { max-height: none; flex: 1; overflow-y: auto; border: none; border-radius: 0; }
+
+/* --------------------------------------------------------------------------
+   Custom theme creator — wider than the plain report-viewer popup, with
+   a real live-preview column (not just "peek at the page behind the
+   modal", which the modal's own backdrop mostly defeats).
+   -------------------------------------------------------------------------- */
+.ct-window { width: min(1200px, 96vw); }
+.ct-layout {
+  display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 0; flex: 1; min-height: 0; overflow: hidden;
+}
+.ct-controls { padding: 1.25rem; overflow-y: auto; }
+.ct-preview {
+  padding: 1.25rem; overflow-y: auto;
+  background: var(--bg); border-left: 1px solid var(--line);
+}
+@media (max-width: 800px) {
+  .ct-layout { grid-template-columns: 1fr; }
+  .ct-preview { border-left: none; border-top: 1px solid var(--line); }
+}
 .viewer-actions { display: flex; gap: 0.5rem; padding: 0.6rem 1rem; border-top: 1px solid var(--line); justify-content: flex-end; }
 .viewer-actions button, .viewer-actions a {
   background: var(--bg); color: var(--cyan); border: 1px solid var(--line);
