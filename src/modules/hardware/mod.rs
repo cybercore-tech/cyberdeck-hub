@@ -15,7 +15,6 @@
 
 use std::fs;
 use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::types::CyberdeckState;
 
@@ -23,10 +22,7 @@ use crate::types::CyberdeckState;
 pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, String> {
     let dir = params;
     let base_f = format!("{}/hardware.md", dir);
-    let timestamp = SystemTime::now()
-    .duration_since(UNIX_EPOCH)
-    .map_err(|e| e.to_string())?
-    .as_secs();
+    let timestamp = crate::modules::utils::now_human();
 
     // Helper: Shell execution with result capture
     let run_cmd = |cmd: &str, args: &[&str]| -> String {

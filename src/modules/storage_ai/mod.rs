@@ -16,7 +16,6 @@
 use crate::types::CyberdeckState;
 use std::fs;
 use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Executes the storage diagnostic logic.
 pub async fn execute(_state: &CyberdeckState, dir: &str) -> Result<String, String> {
@@ -24,10 +23,7 @@ pub async fn execute(_state: &CyberdeckState, dir: &str) -> Result<String, Strin
     // global config access if needed.
 
     let base_f = format!("{}/storage_ai.md", dir);
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_err(|e| e.to_string())?
-        .as_secs();
+    let timestamp = crate::modules::utils::now_human();
 
     // 1. Initialize Subdirectory Tree
     let subdirs = [

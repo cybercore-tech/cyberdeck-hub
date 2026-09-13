@@ -46,6 +46,22 @@ pub fn layout(active_theme: &str, theme_options: &str, nav_active: &str, body: &
 <main>
 {body}
 </main>
+<div id="viewer-overlay" class="viewer-overlay" hidden onclick="if(event.target===this) closeViewer()">
+  <div class="window viewer-window">
+    <div class="titlebar">
+      <span class="dot dot-a"></span><span class="dot dot-b"></span><span class="dot dot-c"></span>
+      <span class="titlebar-text" id="viewer-title">report</span>
+      <a href="javascript:void(0)" class="win-close" onclick="closeViewer()" title="Close">&#10005;</a>
+    </div>
+    <div class="viewer-body">
+      <div id="viewer-content" class="markdown-body">loading…</div>
+      <div class="viewer-actions">
+        <a id="viewer-fullpage" class="btn-ghost" href="/reports" target="_blank" rel="noopener">Open Full Page</a>
+        <button onclick="closeViewer()">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
 <script>
 function applyTheme(name) {{
   fetch('/api/cybergrid/css/' + name)
@@ -57,6 +73,25 @@ window.addEventListener('DOMContentLoaded', () => {{
   const saved = localStorage.getItem('cyberdeck-theme') || '{active_theme}';
   document.getElementById('theme-picker').value = saved;
   applyTheme(saved);
+}});
+
+function openViewer(path) {{
+  const overlay = document.getElementById('viewer-overlay');
+  const content = document.getElementById('viewer-content');
+  document.getElementById('viewer-title').textContent = path;
+  document.getElementById('viewer-fullpage').href = '/reports/' + path;
+  content.innerHTML = 'loading…';
+  overlay.hidden = false;
+  fetch('/api/reports/' + path)
+    .then(r => r.text())
+    .then(html => {{ content.innerHTML = html; }})
+    .catch(() => {{ content.textContent = 'failed to load'; }});
+}}
+function closeViewer() {{
+  document.getElementById('viewer-overlay').hidden = true;
+}}
+document.addEventListener('keydown', e => {{
+  if (e.key === 'Escape') closeViewer();
 }});
 </script>
 </body>
@@ -136,9 +171,16 @@ pub fn hub_sections(checked: &[Checked]) -> String {
         }
     }
 
+    // Cycled per category so each section reads as its own color-coded
+    // group, folder-tree style — matches cybercore's own palette roles
+    // rather than inventing new colors.
+    const CAT_COLORS: &[&str] = &["acid", "cyan", "purple", "pink", "orange", "red", "muted"];
+
     categories
         .iter()
-        .map(|cat| {
+        .enumerate()
+        .map(|(i, cat)| {
+            let color = CAT_COLORS[i % CAT_COLORS.len()];
             let cards: String = checked
                 .iter()
                 .filter(|c| &c.tool.category == cat)
@@ -147,7 +189,7 @@ pub fn hub_sections(checked: &[Checked]) -> String {
             let count = checked.iter().filter(|c| &c.tool.category == cat).count();
             format!(
                 r#"<section class="cat-section">
-  <div class="cat-head"><h2>{cat}</h2><span class="cat-count">{count}</span></div>
+  <div class="cat-head" style="--cat-color: var(--{color});"><h2>{cat}</h2><span class="cat-count">{count}</span></div>
   <div class="grid">{cards}</div>
 </section>"#
             )
@@ -192,7 +234,9 @@ pub const SCAN_MODULES: &[(&str, &str, &str, &str, &str)] = &[
 
 fn scan_card(cmd: &str, title: &str, desc: &str, id: &str, filename: &str, exists: bool) -> String {
     let view = if exists {
-        format!(r#"<a class="btn-link" href="/reports/{filename}">View Output</a>"#)
+        format!(
+            r#"<a class="btn-link" href="/reports/{filename}" onclick="event.preventDefault(); openViewer('{filename}')">View Output</a>"#
+        )
     } else {
         r#"<span class="muted" style="font-size:0.75rem;">not run yet</span>"#.to_string()
     };
@@ -282,7 +326,7 @@ function runScan(cmd, id, filename) {{
     document.getElementById('badge-' + id).textContent = 'HAS OUTPUT';
     document.getElementById('badge-' + id).className = 'badge status-running';
     document.getElementById('view-' + id).innerHTML =
-      '<a class="btn-link" href="/reports/' + filename + '">View Output</a>';
+      '<a class="btn-link" href="/reports/' + filename + '" onclick="event.preventDefault(); openViewer(\'' + filename + '\')">View Output</a>';
     setTimeout(() => {{ btn.innerText = original; btn.disabled = false; }}, 1200);
   }}).catch(() => {{
     btn.innerText = 'error'; btn.disabled = false;
@@ -294,11 +338,18 @@ function loadFileList() {{
   body.innerHTML = '<tr><td>loading…</td></tr>';
   fetch('/cyberdeck/api/list').then(r => r.json()).then(files => {{
     if (!files.length) {{ body.innerHTML = '<tr><td><div class="empty-state">diagnostics/ is empty</div></td></tr>'; return; }}
-    body.innerHTML = files.map(f =>
-      '<tr><td><code>' + f + '</code></td><td>' +
-      (f.endsWith('.md') ? '<a class="btn-link" href="/reports/' + f + '">View</a>' : '<span class="muted">binary</span>') +
-      '</td></tr>'
-    ).join('');
+    // Paths come back recursive (e.g. "cpu/cpu.md", "interfaces/wlp2s0.md")
+    // — split each into its folder and filename so nested output isn't
+    // silently invisible the way a flat, top-level-only listing was.
+    body.innerHTML = files.map(f => {{
+      const slash = f.lastIndexOf('/');
+      const folder = slash === -1 ? '<span class="muted">(root)</span>' : f.slice(0, slash);
+      const name = slash === -1 ? f : f.slice(slash + 1);
+      const view = f.endsWith('.md')
+        ? '<a class="btn-link" href="/reports/' + f + '" onclick="event.preventDefault(); openViewer(\'' + f + '\')">View</a>'
+        : '<span class="muted">binary</span>';
+      return '<tr><td class="muted" style="width:9rem;">' + folder + '</td><td><code>' + name + '</code></td><td>' + view + '</td></tr>';
+    }}).join('');
   }}).catch(() => {{ body.innerHTML = '<tr><td>failed to list files</td></tr>'; }});
 }}
 
@@ -333,7 +384,7 @@ pub fn reports_page(entries: &[(String, u64, String)]) -> String {
             .map(|(name, size, modified)| {
                 format!(
                     r#"<tr>
-  <td><a class="btn-link" href="/reports/{name}">{name}</a></td>
+  <td><a class="btn-link" href="/reports/{name}" onclick="event.preventDefault(); openViewer('{name}')">{name}</a></td>
   <td>{size} bytes</td>
   <td class="muted">{modified}</td>
 </tr>"#
@@ -356,13 +407,34 @@ pub fn reports_page(entries: &[(String, u64, String)]) -> String {
     )
 }
 
+/// Renders the module's raw markdown output as real HTML — headers, code
+/// fences, tables, bold/italic — instead of dumping escaped plain text
+/// into one undifferentiated grey box.
+pub fn render_markdown(content: &str) -> String {
+    use pulldown_cmark::{html, Options, Parser};
+    let mut opts = Options::empty();
+    opts.insert(Options::ENABLE_TABLES);
+    opts.insert(Options::ENABLE_STRIKETHROUGH);
+    let parser = Parser::new_ext(content, opts);
+    let mut html_out = String::new();
+    html::push_html(&mut html_out, parser);
+    html_out
+}
+
 pub fn report_view(name: &str, content: &str) -> String {
     format!(
         r#"<div class="dash-head">
   <h1>{name}</h1>
   <p><a class="btn-ghost" href="/reports">&larr; back to reports</a></p>
 </div>
-<div class="log-view">{}</div>"#,
-        escape(content)
+<div class="markdown-body">{}</div>"#,
+        render_markdown(content)
     )
+}
+
+/// The same rendered markdown, without the page chrome or the
+/// `.markdown-body` wrapper (the popup viewer's modal already provides
+/// that container) — used by the popup viewer's `fetch()` call.
+pub fn report_fragment(content: &str) -> String {
+    render_markdown(content)
 }

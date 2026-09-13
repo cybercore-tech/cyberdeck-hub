@@ -14,7 +14,6 @@
 //-END
 
 use std::fs;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::types::CyberdeckState;
 
@@ -24,10 +23,7 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
     let base_f = format!("{}/fan.md", dir);
     let hwmon_dir = "/sys/class/hwmon";
 
-    let timestamp = SystemTime::now()
-    .duration_since(UNIX_EPOCH)
-    .map_err(|e| e.to_string())?
-    .as_secs();
+    let timestamp = crate::modules::utils::now_human();
 
     let mut report = format!("# 🌬️ CYBERDECK: COOLING INTELLIGENCE\n\nTimestamp: {}\n\n", timestamp);
 

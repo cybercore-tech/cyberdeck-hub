@@ -9,24 +9,31 @@
 
 use std::fs::{self, File};
 use std::io::Write;
-use std::time::{SystemTime, UNIX_EPOCH};
 
-// Your existing header function
+/// Local wall-clock time, e.g. `2026-09-12 20:29 PDT` — every module's
+/// report header used to print a raw `SystemTime::now().as_secs()` unix
+/// timestamp; this is the human-readable replacement.
+pub fn now_human() -> String {
+    chrono::Local::now().format("%Y-%m-%d %H:%M %Z").to_string()
+}
+
+/// Read one `/sys/class/dmi/id/<field>` value — vendor/model/BIOS info
+/// without needing root. A few fields (serials, `product_uuid`) really are
+/// root-only; this reports that honestly instead of coming back blank the
+/// way a failed unattended `sudo dmidecode` silently did before.
+pub fn dmi_field(field: &str) -> String {
+    fs::read_to_string(format!("/sys/class/dmi/id/{field}"))
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "restricted (root only) or unavailable".to_string())
+}
+
+// A single clean generated-at line — replaces the old ASCII-art
+// "CYBERDECK INTERNAL DIAGNOSTIC SYSTEM / SYS_ID: <hex unix time>" block,
+// which read like internal jargon with no real information in it.
 pub fn write_header(file: &mut File, status: &str) -> std::io::Result<()> {
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-    let header = format!(
-        r#"
-        /* ========================================================== */
-        /* CYBERDECK INTERNAL DIAGNOSTIC SYSTEM                       */
-        /* STATUS: {} | SYS_ID: {:X}                                  */
-        /* ========================================================== */
-        "#,
-        status, timestamp
-    );
-    writeln!(file, "{}", header)
+    writeln!(file, "_Generated {} — status: {}_\n", now_human(), status)
 }
 
 // THE NEW HELPER: Standardizes initialization

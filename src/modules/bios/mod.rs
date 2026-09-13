@@ -20,7 +20,6 @@
 use std::fs::{self, OpenOptions};
 use std::process::Command;
 use std::io::Write;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::types::CyberdeckState;
 
@@ -34,14 +33,20 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
         fs::create_dir_all(format!("{}/{}", dir, folder)).map_err(|e| e.to_string())?;
     }
 
+    // Cross-referenced copies under each subsystem's own folder — named
+    // `bios-crossref.md`, NOT reusing the dedicated module's own filename
+    // (`cpu.md`, `motherboard.md`, `memory.md`, `power.md`): four of these
+    // used to collide with the standalone CPU/Motherboard/Memory/Power
+    // scans' actual output, so whichever scan ran last silently overwrote
+    // the other with a thinner copy.
     let base_f = format!("{}/bios.md", dir);
     let sub_bios_f = format!("{}/motherboard/bios.md", dir);
-    let sub_board_f = format!("{}/motherboard/motherboard.md", dir);
-    let sub_cpu_f = format!("{}/cpu/cpu.md", dir);
+    let sub_board_f = format!("{}/motherboard/bios-crossref.md", dir);
+    let sub_cpu_f = format!("{}/cpu/bios-crossref.md", dir);
     let sub_chipset_f = format!("{}/chipset/chipset.md", dir);
-    let sub_mem_f = format!("{}/memory/memory.md", dir);
+    let sub_mem_f = format!("{}/memory/bios-crossref.md", dir);
     let sub_kernel_f = format!("{}/kernel/kernel.md", dir);
-    let sub_power_f = format!("{}/power/power.md", dir);
+    let sub_power_f = format!("{}/power/bios-crossref.md", dir);
 
     // Reusable file writing handlers
     let write_to = |path: &str, content: &str| -> Result<(), String> {
@@ -73,30 +78,39 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
         .unwrap_or_else(|_| format!("{} not available\n", cmd))
     };
 
-    let timestamp = SystemTime::now()
-    .duration_since(UNIX_EPOCH)
-    .map_err(|e| e.to_string())?
-    .as_secs();
+    let timestamp = crate::modules::utils::now_human();
 
     // 2. Base Header Configuration
-    write_to(&base_f, &format!("⚙️ CYBERDECK: BIOS & SYSTEM INTELLIGENCE\nTimestamp: {}\n\n## 🧠 SYSTEM OVERVIEW\n", timestamp))?;
-    write_to(&base_f, &format!("Timestamp: {}\n\n## 🧠 SYSTEM OVERVIEW\n", timestamp))?;
+    write_to(&base_f, &format!("# BIOS & System Intelligence\n\n_Generated {}_\n\n## System Overview\n", timestamp))?;
 
     let uname_all = run_cmd("uname", &["-a"]);
     write_to(&base_f, &uname_all)?;
 
-    // 3. BIOS Records Extraction
-    write_to(&base_f, "\n## ⚙️ BIOS\n")?;
-    let dmi_bios = run_cmd("sudo", &["dmidecode", "-t", "bios"]);
+    // 3. BIOS Records Extraction — `/sys/class/dmi/id/*`, not `sudo
+    // dmidecode` (which silently produced nothing: this process has no TTY
+    // to ever satisfy an interactive sudo prompt).
+    write_to(&base_f, "\n## BIOS\n")?;
+    let dmi_bios = format!(
+        "- Vendor: {}\n- Version: {}\n- Release: {}\n- Date: {}\n",
+        crate::modules::utils::dmi_field("bios_vendor"),
+        crate::modules::utils::dmi_field("bios_version"),
+        crate::modules::utils::dmi_field("bios_release"),
+        crate::modules::utils::dmi_field("bios_date"),
+    );
     write_to(&base_f, &dmi_bios)?;
-    overwrite_to(&sub_bios_f, "# ⚙️ BIOS\n")?;
+    overwrite_to(&sub_bios_f, "# BIOS\n")?;
     write_to(&sub_bios_f, &dmi_bios)?;
 
     // 4. Motherboard Configuration
-    write_to(&base_f, "\n## 🧩 MOTHERBOARD\n")?;
-    let dmi_board = run_cmd("sudo", &["dmidecode", "-t", "baseboard"]);
+    write_to(&base_f, "\n## Motherboard\n")?;
+    let dmi_board = format!(
+        "- Vendor: {}\n- Model: {}\n- Version: {}\n",
+        crate::modules::utils::dmi_field("board_vendor"),
+        crate::modules::utils::dmi_field("board_name"),
+        crate::modules::utils::dmi_field("board_version"),
+    );
     write_to(&base_f, &dmi_board)?;
-    overwrite_to(&sub_board_f, "# 🧩 MOTHERBOARD\n")?;
+    overwrite_to(&sub_board_f, "# Motherboard\n")?;
     write_to(&sub_board_f, &dmi_board)?;
 
     // 5. Processor Diagnostics
@@ -122,8 +136,11 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
     write_to(&base_f, &free_out)?;
     overwrite_to(&sub_mem_f, "# 🧠 MEMORY\n")?;
     write_to(&sub_mem_f, &free_out)?;
-    let dmi_mem = run_cmd("sudo", &["dmidecode", "-t", "memory"]);
-    write_to(&sub_mem_f, &dmi_mem)?;
+    write_to(
+        &sub_mem_f,
+        "\nPer-DIMM detail (`dmidecode -t memory`) needs root — not \
+         available to this unattended service; the usage stats above are.\n",
+    )?;
 
     // 8. Kernel Parameters
     write_to(&base_f, "\n## 🧬 KERNEL\n")?;

@@ -16,7 +16,6 @@
 
 use std::fs;
 use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
 use crate::types::CyberdeckState;
 
 /// Executes the thermal diagnostic suite.
@@ -29,10 +28,7 @@ pub async fn execute(_state: &CyberdeckState, dir: &str) -> Result<String, Strin
     fs::create_dir_all(format!("{}/raw", dir)).map_err(|e| e.to_string())?;
     fs::create_dir_all(format!("{}/parsed", dir)).map_err(|e| e.to_string())?;
 
-    let timestamp = SystemTime::now()
-    .duration_since(UNIX_EPOCH)
-    .map_err(|e| e.to_string())?
-    .as_secs();
+    let timestamp = crate::modules::utils::now_human();
 
     let mut report = format!("# 🌡️ CYBERDECK: THERMAL INTELLIGENCE\n\nTimestamp: {}\n\n", timestamp);
 

@@ -11,7 +11,6 @@
 
 use std::fs;
 use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::types::CyberdeckState;
 
@@ -20,10 +19,7 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
     let dir = params;
     let base_f = format!("{}/memory.md", dir);
 
-    let timestamp = SystemTime::now()
-    .duration_since(UNIX_EPOCH)
-    .map_err(|e| e.to_string())?
-    .as_secs();
+    let timestamp = crate::modules::utils::now_human();
 
     let mut report = format!("<div style='background:#6a0dad;color:white;padding:6px;'>🧠 CYBERDECK: MEMORY & TOPOLOGY CORE</div>\n\nTimestamp: {}\n\n", timestamp);
 
@@ -36,21 +32,14 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
     report.push_str(&String::from_utf8_lossy(&free.stdout));
     report.push_str("```\n");
 
-    // 2. Physical DIMM Inventory
-    // Note: dmidecode usually requires root privileges.
+    // 2. Physical DIMM Inventory — `dmidecode -t memory` needs root, which
+    // this unattended service never has (no TTY to answer a sudo prompt);
+    // say so plainly instead of silently writing nothing.
     report.push_str("\n## 🧩 DIMM Inventory\n");
-    let dmi_out = Command::new("sudo")
-    .args(["dmidecode", "-t", "memory"])
-    .output()
-    .map_err(|e| e.to_string())?;
-
-    let dmi = String::from_utf8_lossy(&dmi_out.stdout);
-
-    for line in dmi.lines() {
-        if line.contains("Size:") || line.contains("Speed:") || line.contains("Type:") || line.contains("Part Number:") {
-            report.push_str(&format!("- `{}`\n", line.trim()));
-        }
-    }
+    report.push_str(
+        "Per-DIMM size/speed/part-number detail needs root — not available \
+         to this service. Total/used/free is in Usage Statistics above.\n",
+    );
 
     // 3. Swap & NUMA
     report.push_str("\n## 🧬 Swap & NUMA Nodes\n");

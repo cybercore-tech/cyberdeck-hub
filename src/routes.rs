@@ -88,17 +88,34 @@ fn now_secs() -> u64 {
         .unwrap_or(0)
 }
 
+/// `None` on any traversal attempt — every path segment must be a plain
+/// name, no `..`, no empty segment from a stray `//`.
+fn safe_diagnostics_path(rel: &str) -> Option<std::path::PathBuf> {
+    if rel.split('/').any(|seg| seg == ".." || seg.is_empty()) {
+        return None;
+    }
+    Some(std::path::Path::new("diagnostics").join(rel))
+}
+
 pub async fn report_view(AxPath(rel_path): AxPath<String>) -> Html<String> {
     // Several modules write into a sub-directory (cpu/cpu.md,
     // battery/battery.md, per-device/per-iface files, ...) — this route is
-    // a wildcard (`/reports/*path`) so those work too. Still guard against
-    // traversal: every segment must be a plain name, no `..`, no absolute.
-    if rel_path.split('/').any(|seg| seg == ".." || seg.is_empty()) {
+    // a wildcard (`/reports/*path`) so those work too.
+    let Some(path) = safe_diagnostics_path(&rel_path) else {
         return page("Reports", "<p>invalid report path</p>".to_string());
-    }
-    let path = std::path::Path::new("diagnostics").join(&rel_path);
+    };
     let content = std::fs::read_to_string(&path).unwrap_or_else(|_| "not found".to_string());
     page("Reports", views::report_view(&rel_path, &content))
+}
+
+/// The same content as `report_view`, rendered without page chrome — for
+/// the popup viewer's `fetch()` (see `openViewer()` in `views::layout`).
+pub async fn report_fragment(AxPath(rel_path): AxPath<String>) -> Html<String> {
+    let Some(path) = safe_diagnostics_path(&rel_path) else {
+        return Html("<p>invalid report path</p>".to_string());
+    };
+    let content = std::fs::read_to_string(&path).unwrap_or_else(|_| "not found".to_string());
+    Html(views::report_fragment(&content))
 }
 
 pub async fn get_cyberdeck_state(
@@ -147,16 +164,29 @@ pub async fn post_cyberdeck_action(Json(payload): Json<DeckAction>) -> Json<Stri
     }
 }
 
+/// Every file under `diagnostics/`, recursively, as paths relative to it
+/// (`cpu/cpu.md`, `interfaces/wlp2s0.md`, ...) — a flat, non-recursive
+/// listing used to hide everything written into a module's own
+/// subdirectory, which is most of them.
+fn collect_all_files(dir: &std::path::Path, prefix: &str, out: &mut Vec<String>) {
+    let Ok(rd) = std::fs::read_dir(dir) else { return };
+    let mut entries: Vec<_> = rd.filter_map(|e| e.ok()).collect();
+    entries.sort_by_key(|e| e.file_name());
+    for entry in entries {
+        let Ok(meta) = entry.metadata() else { continue };
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let rel = if prefix.is_empty() { name.clone() } else { format!("{prefix}/{name}") };
+        if meta.is_dir() {
+            collect_all_files(&entry.path(), &rel, out);
+        } else {
+            out.push(rel);
+        }
+    }
+}
+
 pub async fn list_diagnostics() -> Json<Vec<String>> {
-    let paths = std::fs::read_dir("./diagnostics")
-        .map(|entries| {
-            entries
-                .filter_map(|e| e.ok())
-                .filter(|e| e.path().is_file())
-                .map(|e| e.file_name().to_string_lossy().into_owned())
-                .collect()
-        })
-        .unwrap_or_default();
+    let mut paths = Vec::new();
+    collect_all_files(std::path::Path::new("diagnostics"), "", &mut paths);
     Json(paths)
 }
 

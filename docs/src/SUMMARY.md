@@ -24,7 +24,6 @@
 - [Live Dashboard Dashboard]( snippets/notes/live_dashboard__src_modules_dashboard_mod_rs_.md)
 - [Log Results]( snippets/notes/log_results.md)
 - [Memory Intelligence Module Memory]( snippets/notes/memory_intelligence_module__src_modules_memory_mod_rs_.md)
-- [Motherboard Intelligence Motherboard]( snippets/notes/motherboard_intelligence__src_modules_motherboard_mod_rs_.md)
 - [Network Connectivity Intelligence Network]( snippets/notes/network__connectivity_intelligence__src_modules_network_mod_rs_.md)
 - [Orchestrator Mod Rs]( snippets/notes/orchestrator__src_modules_mod_rs_.md)
 - [Power Performance Intelligence Power]( snippets/notes/power__performance_intelligence__src_modules_power_mod_rs_.md)

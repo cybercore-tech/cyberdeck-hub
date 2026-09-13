@@ -15,7 +15,6 @@
 
 use std::fs;
 use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::types::CyberdeckState;
 
@@ -24,10 +23,7 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
     let dir = params;
     let base_f = format!("{}/power.md", dir);
 
-    let timestamp = SystemTime::now()
-    .duration_since(UNIX_EPOCH)
-    .map_err(|e| e.to_string())?
-    .as_secs();
+    let timestamp = crate::modules::utils::now_human();
 
     let mut report = format!("# 🔋 POWER & PERFORMANCE\n\nTimestamp: {}\n\n", timestamp);
 

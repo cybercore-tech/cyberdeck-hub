@@ -48,6 +48,7 @@ async fn main() {
         .route("/scans", get(routes::scans_view))
         .route("/reports", get(routes::reports_view))
         .route("/reports/*path", get(routes::report_view))
+        .route("/api/reports/*path", get(routes::report_fragment))
         .route("/cyberdeck/api/state", get(routes::get_cyberdeck_state))
         .route("/cyberdeck/api/command", post(routes::post_cyberdeck_command))
         .route("/cyberdeck/api/action", post(routes::post_cyberdeck_action))
