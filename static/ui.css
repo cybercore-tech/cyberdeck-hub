@@ -226,11 +226,24 @@ code { font-family: var(--font-mono, monospace); }
 }
 
 /* --------------------------------------------------------------------------
-   Select inputs — native <select> chrome ignores background-color in some
-   browsers unless appearance is reset; make the archive-format picker (and
-   any other select) match text-input's theming instead of looking like an
-   unstyled OS control.
+   Text/select inputs. `.text-input` itself was never actually defined
+   before — the archive-format <select> referenced the class but got none
+   of its theming, just browser-default white-on-black OS chrome.
    -------------------------------------------------------------------------- */
+.text-input {
+  background-color: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 0.5rem 0.7rem;
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+.text-input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 0 1px var(--cyan); }
+
+/* Native <select> chrome ignores background-color in some browsers unless
+   appearance is reset; also style the popup option list itself — limited
+   cross-browser support, but Firefox/Chromium both honor it. */
 select.text-input {
   appearance: none;
   -webkit-appearance: none;
@@ -242,6 +255,10 @@ select.text-input {
   background-repeat: no-repeat;
   padding-right: 2rem;
   cursor: pointer;
+}
+select.text-input option {
+  background-color: var(--panel);
+  color: var(--fg);
 }
 
 /* --------------------------------------------------------------------------
