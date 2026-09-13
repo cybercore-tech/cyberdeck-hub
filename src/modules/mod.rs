@@ -29,11 +29,15 @@ pub mod bios;
 pub mod cpu;
 pub mod disks;
 pub mod fan;
+pub mod gpu;
 pub mod hardware;
+pub mod kernel_modules;
 pub mod memory;
 pub mod motherboard;
+pub mod mounts;
 pub mod network;
 pub mod power;
+pub mod usb;
 
 // AI Services / Modules
 pub mod storage_ai;

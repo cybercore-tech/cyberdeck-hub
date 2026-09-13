@@ -34,14 +34,18 @@ pub enum CyberdeckCommand {
     RunDashboardModule(String),
     RunDisksModule(String),
     RunFanModule(String),
+    RunGpuModule(String),
     RunHardwareModule(String),
+    RunKernelModulesModule(String),
     RunMemoryModule(String),
     RunMotherboardModule(String),
+    RunMountsModule(String),
     RunNetworkModule(String),
     RunPowerModule(String),
     RunServicesModule(String),
     RunStorageAiModule(String),
     RunThermalModule(String),
+    RunUsbModule(String),
 
     ArchiveFiles(String),
 

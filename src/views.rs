@@ -230,6 +230,10 @@ pub const SCAN_MODULES: &[(&str, &str, &str, &str, &str)] = &[
     ("RunBatteryModule", "Battery Health", "Capacity, cycle count, condition.", "bat", "battery/battery.md"),
     ("RunServicesModule", "System Daemons", "systemd unit inventory.", "svc", "services.md"),
     ("RunMotherboardModule", "Mainboard Bus", "Board model, vendor, revision.", "mobo", "motherboard/motherboard.md"),
+    ("RunGpuModule", "GPU", "VGA/3D controllers, driver bound, NVIDIA live stats if present.", "gpu", "gpu.md"),
+    ("RunUsbModule", "USB Devices", "Every enumerated USB device, bus/vendor/product.", "usb", "usb.md"),
+    ("RunKernelModulesModule", "Kernel Modules", "Loaded modules, size, dependents — largest first.", "kmod", "kernel_modules.md"),
+    ("RunMountsModule", "Mounted Filesystems", "What's mounted where, plus usage — not just block devices.", "mnt", "mounts.md"),
 ];
 
 fn scan_card(cmd: &str, title: &str, desc: &str, id: &str, filename: &str, exists: bool) -> String {

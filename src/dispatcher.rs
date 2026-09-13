@@ -11,8 +11,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use std::process::Command; // Added for shell execution
 
 use crate::modules::{
-    audio, battery, bios, cpu, dashboard, disks, fan, hardware,
-    memory, motherboard, network, power, services, storage_ai, thermal_ai
+    audio, battery, bios, cpu, dashboard, disks, fan, gpu, hardware, kernel_modules,
+    memory, motherboard, mounts, network, power, services, storage_ai, thermal_ai, usb
 };
 
 //-NOTE: Dispatcher [Execution Engine] (src/dispatcher.rs)
@@ -188,6 +188,26 @@ pub async fn execute_cyberdeck_command(cmd: CyberdeckCommand, state: &SharedCybe
         CyberdeckCommand::RunThermalModule(p) => run_module(state, &p, |params| {
             let params = params.to_string(); let state_arc = state.clone();
             async move { thermal_ai::execute(&*state_arc.lock().await, &params).await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)) }
+        }).await,
+
+        CyberdeckCommand::RunGpuModule(p) => run_module(state, &p, |params| {
+            let params = params.to_string(); let state_arc = state.clone();
+            async move { gpu::execute(&*state_arc.lock().await, &params).await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)) }
+        }).await,
+
+        CyberdeckCommand::RunUsbModule(p) => run_module(state, &p, |params| {
+            let params = params.to_string(); let state_arc = state.clone();
+            async move { usb::execute(&*state_arc.lock().await, &params).await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)) }
+        }).await,
+
+        CyberdeckCommand::RunKernelModulesModule(p) => run_module(state, &p, |params| {
+            let params = params.to_string(); let state_arc = state.clone();
+            async move { kernel_modules::execute(&*state_arc.lock().await, &params).await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)) }
+        }).await,
+
+        CyberdeckCommand::RunMountsModule(p) => run_module(state, &p, |params| {
+            let params = params.to_string(); let state_arc = state.clone();
+            async move { mounts::execute(&*state_arc.lock().await, &params).await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)) }
         }).await,
 
         // Print warning if not implemented
