@@ -1,6 +1,6 @@
 [Unit]
 Description=Cyberdeck — central tool hub + hardware diagnostics core (127.0.0.1:8080)
-Documentation=https://github.com/darkstardevx/cyberdeck
+Documentation=https://github.com/darkstardevx/cyberdeck-hub
 After=network.target
 
 [Service]
