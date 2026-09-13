@@ -127,7 +127,14 @@ body {
    with zero author override available, which never matched the active
    theme regardless of what CSS was tried against it.
    -------------------------------------------------------------------------- */
-.theme-dropdown-wrap { position: relative; }
+/* inline-block, not the div default of block — this only ever looked
+   right in the topbar by accident, because flex sizing there happens to
+   shrink a block child to its content width anyway. Anywhere it sits in
+   a plain block context (the Archive panel), a block-level wrapper
+   stretches to the full width of its container, and `right: 0` on the
+   dropdown then anchors to that far edge instead of the button actually
+   sitting at the start of it. */
+.theme-dropdown-wrap { position: relative; display: inline-block; }
 #theme-picker-btn { text-transform: uppercase; letter-spacing: 0.3px; font-size: 0.78rem; gap: 0.4rem; }
 .caret-down { font-size: 0.65em; color: var(--muted); }
 .theme-dropdown {
