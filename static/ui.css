@@ -1,0 +1,205 @@
+/* CYBERDECK — layered on top of cybercore's tokens.css (typography/spacing)
+   and the CYBERGRID theme <style id="theme-vars"> injected per-theme at
+   runtime (--bg --fg --acid --pink --purple --cyan --orange --red --panel
+   --line --muted). No colors are hardcoded here — swapping the theme
+   picker should repaint everything, including the glow/scanline backdrop
+   and every scrollbar. Same design language as Dockspace, by request —
+   card/badge/topbar/window conventions are shared verbatim so the two
+   apps read as one family. */
+
+* { box-sizing: border-box; }
+
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--purple) var(--bg);
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-mono, monospace);
+  margin: 0;
+  position: relative;
+}
+
+/* --------------------------------------------------------------------------
+   Scrollbars — page and every internally-scrolling panel
+   -------------------------------------------------------------------------- */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--cyan), var(--purple));
+  border-radius: 5px;
+  border: 2px solid var(--bg);
+}
+::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, var(--pink), var(--purple)); }
+::-webkit-scrollbar-corner { background: var(--bg); }
+
+.log-view { scrollbar-width: thin; scrollbar-color: var(--cyan) var(--panel); }
+
+/* --------------------------------------------------------------------------
+   Backdrop — faint scanlines + a slow-breathing glow bloom
+   -------------------------------------------------------------------------- */
+.bg-scanlines {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.015) 0px,
+    rgba(255, 255, 255, 0.015) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+.bg-glow {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    radial-gradient(ellipse 55% 40% at 12% 8%, color-mix(in srgb, var(--pink) 22%, transparent), transparent 60%),
+    radial-gradient(ellipse 60% 45% at 90% 12%, color-mix(in srgb, var(--cyan) 16%, transparent), transparent 60%),
+    radial-gradient(ellipse 70% 55% at 50% 100%, color-mix(in srgb, var(--purple) 20%, transparent), transparent 65%);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .bg-glow { animation: breathe 13s ease-in-out infinite; }
+}
+@keyframes breathe { 0%, 100% { opacity: 0.8; } 50% { opacity: 1; } }
+
+.topbar, main { position: relative; z-index: 1; }
+
+/* --------------------------------------------------------------------------
+   Top bar
+   -------------------------------------------------------------------------- */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  backdrop-filter: blur(6px);
+  position: sticky; top: 0; z-index: 10;
+}
+.brand { font-weight: 700; font-size: 1.1rem; letter-spacing: 0.5px; text-shadow: 0 0 10px color-mix(in srgb, var(--pink) 50%, transparent); }
+.brand-accent { color: var(--cyan); text-shadow: 0 0 10px color-mix(in srgb, var(--cyan) 60%, transparent); }
+.topbar-right { display: flex; align-items: center; gap: 0.75rem; }
+.topbar-nav { display: flex; align-items: center; gap: 0.5rem; }
+
+#theme-picker {
+  background: var(--panel); color: var(--fg); border: 1px solid var(--line);
+  padding: 0.4rem 0.6rem; border-radius: 3px; font-family: inherit;
+}
+
+.btn-ghost {
+  background: transparent; color: var(--cyan); border: 1px solid var(--line);
+  padding: 0.4rem 0.8rem; border-radius: 3px; text-decoration: none; font-size: 0.85rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.btn-ghost:hover { border-color: var(--cyan); box-shadow: 0 0 10px color-mix(in srgb, var(--cyan) 30%, transparent); }
+.btn-ghost.active { color: var(--acid); border-color: var(--acid); }
+
+main { max-width: 1300px; margin: 0 auto; padding: 1.5rem; }
+
+.dash-head h1 { margin: 0 0 0.3rem; text-shadow: 0 0 12px color-mix(in srgb, var(--purple) 40%, transparent); }
+.muted { color: var(--muted); }
+
+/* --------------------------------------------------------------------------
+   Category sections
+   -------------------------------------------------------------------------- */
+.cat-section { margin-top: 2rem; }
+.cat-head {
+  display: flex; align-items: baseline; gap: 0.6rem; margin-bottom: 0.75rem;
+  border-bottom: 1px solid var(--line); padding-bottom: 0.4rem;
+}
+.cat-head h2 {
+  margin: 0; font-size: 1rem; letter-spacing: 0.4px; text-transform: uppercase;
+  color: var(--fg); text-shadow: 0 0 8px color-mix(in srgb, var(--purple) 35%, transparent);
+}
+.cat-count { font-size: 0.75rem; color: var(--muted); }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+/* --------------------------------------------------------------------------
+   Cards — a soft sheen sweeps in on hover, plus a glow that matches
+   whatever status color the card is currently showing.
+   -------------------------------------------------------------------------- */
+.card {
+  --glow: var(--line);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 3px;
+  padding: 1rem; position: relative; overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.25s ease;
+}
+.card::before {
+  content: ""; position: absolute; inset: -40% -40% auto -40%; height: 140%;
+  background: radial-gradient(ellipse at top, color-mix(in srgb, var(--glow) 15%, transparent), transparent 70%);
+  opacity: 0; transition: opacity 0.25s ease; pointer-events: none;
+}
+.card:hover { border-color: var(--glow); box-shadow: 0 10px 28px rgba(0,0,0,0.35), 0 0 24px color-mix(in srgb, var(--glow) 35%, transparent); }
+.card:hover::before { opacity: 1; }
+
+.card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; position: relative; }
+.card-title { font-weight: 600; }
+.card-desc { font-size: 0.8rem; color: var(--muted); margin: 0 0 0.5rem; position: relative; }
+.card-meta { font-size: 0.72rem; margin: 0 0 0.7rem; position: relative; }
+.card-meta code {
+  background: var(--bg); border: 1px solid var(--line); padding: 0.1rem 0.35rem;
+  border-radius: 3px; color: var(--muted);
+}
+
+.badge {
+  font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 3px;
+  letter-spacing: 0.4px; white-space: nowrap;
+}
+.status-running { background: rgba(0,0,0,0.2); color: var(--acid); border: 1px solid var(--acid); text-shadow: 0 0 6px color-mix(in srgb, var(--acid) 60%, transparent); }
+.status-partial { background: rgba(0,0,0,0.2); color: var(--orange); border: 1px solid var(--orange); text-shadow: 0 0 6px color-mix(in srgb, var(--orange) 60%, transparent); }
+.status-stopped { background: rgba(0,0,0,0.2); color: var(--muted); border: 1px solid var(--line); }
+.status-unknown { background: rgba(0,0,0,0.2); color: var(--red); border: 1px solid var(--red); text-shadow: 0 0 6px color-mix(in srgb, var(--red) 60%, transparent); }
+
+.card:has(.status-running) { --glow: var(--acid); }
+.card:has(.status-partial) { --glow: var(--orange); }
+.card:has(.status-unknown) { --glow: var(--red); }
+
+.card-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; position: relative; }
+.card-actions button, .card-actions a.btn-link {
+  background: var(--bg); color: var(--cyan); border: 1px solid var(--line);
+  padding: 0.35rem 0.7rem; border-radius: 3px; font-family: inherit; font-size: 0.78rem;
+  cursor: pointer; text-decoration: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+.card-actions button:hover, .card-actions a.btn-link:hover {
+  border-color: var(--cyan); box-shadow: 0 0 10px color-mix(in srgb, var(--cyan) 30%, transparent);
+}
+.card-actions button:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+
+/* --------------------------------------------------------------------------
+   Windows — same titlebar-and-dots chrome as Dockspace
+   -------------------------------------------------------------------------- */
+.window { background: var(--panel); border: 1px solid var(--line); border-radius: 3px; overflow: hidden; box-shadow: 0 16px 40px rgba(0,0,0,0.45); }
+.titlebar { display: flex; align-items: center; gap: 6px; padding: 0.7rem 1.1rem; background: color-mix(in srgb, var(--panel) 70%, var(--bg)); border-bottom: 1px solid var(--line); }
+.dot { width: 10px; height: 10px; border-radius: 50%; }
+.dot-a { background: var(--pink); }
+.dot-b { background: var(--purple); }
+.dot-c { background: var(--cyan); }
+.titlebar-text { margin-left: 8px; font-size: 0.8rem; color: var(--muted); }
+.window-body { padding: 1.25rem; }
+
+.log-view {
+  background: var(--bg); border: 1px solid var(--line); border-radius: 3px;
+  padding: 1rem; overflow-x: auto; white-space: pre-wrap; font-size: 0.82rem;
+  line-height: 1.5; max-height: 75vh; overflow-y: auto;
+}
+code { font-family: var(--font-mono, monospace); }
+
+/* --------------------------------------------------------------------------
+   Reports table
+   -------------------------------------------------------------------------- */
+.res-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; background: var(--bg); border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+.res-table th, .res-table td { text-align: left; padding: 0.5rem 0.7rem; border-bottom: 1px solid var(--line); }
+.res-table th { color: var(--muted); font-size: 0.7rem; letter-spacing: 0.4px; text-transform: uppercase; background: color-mix(in srgb, var(--panel) 60%, var(--bg)); }
+.res-table tr:last-child td { border-bottom: none; }
+.res-table tr:hover td { background: color-mix(in srgb, var(--cyan) 6%, transparent); }
+.empty-state { color: var(--muted); font-size: 0.85rem; padding: 1.5rem; text-align: center; border: 1px dashed var(--line); border-radius: 3px; }
+
+@media (max-width: 640px) {
+  .topbar { flex-direction: column; gap: 0.6rem; align-items: stretch; }
+  .grid { grid-template-columns: 1fr; }
+}

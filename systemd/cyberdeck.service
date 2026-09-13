@@ -1,0 +1,16 @@
+[Unit]
+Description=Cyberdeck — central tool hub + hardware diagnostics core (127.0.0.1:8080)
+Documentation=https://github.com/darkstardevx/cyberdeck
+After=network.target
+
+[Service]
+Type=simple
+User=raven
+Group=raven
+WorkingDirectory=/home/raven/.sysops/cyberdeck
+ExecStart=/home/raven/.cargo-target/release/cyberdeck_core
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

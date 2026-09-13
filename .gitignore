@@ -1,0 +1,8 @@
+/diagnostics/
+/target/
+.directory
+/output/
+/snippets/
+/aur-cyberdeck/
+build/
+/docs/book/

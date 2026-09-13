@@ -1,0 +1,86 @@
+import { Button, CheckBox, VerticalBox, ScrollView } from "std-widgets.slint";
+
+export component AppWindow inherits Window {
+    title: "CYBERDECK OS";
+    width: 500px;
+    height: 600px;
+
+    property <color> bg_main: #000000;
+    property <color> bg_card: #050507;
+    property <color> border_color: #16181f;
+    property <color> text_primary: #f1f5f9;
+    property <color> text_muted: #525865;
+    property <color> accent_cyan: #06b6d4;
+    property <color> accent_purple: #7c3aed;
+    property <color> accent_amber: #f59e0b;
+
+    background: bg_main;
+    color: text_primary;
+
+    // Callbacks to send selected modules down to Rust backend
+    callback run_selected_modules(string); // Pass comma-separated or handling array
+
+    VerticalBox {
+        padding: 20px;
+        spacing: 15px;
+
+        Rectangle {
+            background: bg_card;
+            border-width: 1px;
+            border-color: border_color;
+            border-radius: 4px;
+
+            VerticalBox {
+                padding: 16px;
+                spacing: 12px;
+
+                Text {
+                    text: "👁 CYBERDECK MODULE SELECTOR";
+                    color: text_primary;
+                    font-size: 18px;
+                    font-weight: bold;
+                }
+
+                Text {
+                    text: "Tactical systems ready";
+                    color: text_muted;
+                    font-size: 11px;
+                }
+
+                // We can render a neat scrollable list of checkable options
+                ScrollView {
+                    VerticalBox {
+                        alignment: start;
+                        spacing: 8px;
+
+                        // We can define explicitly matching checkboxes for your core suite
+                        cb_hardware := CheckBox { text: "Hardware Auditing"; }
+                        cb_disks := CheckBox { text: "Disk Analyzer"; }
+                        cb_network := CheckBox { text: "Network Diagnostics"; }
+                        cb_fan := CheckBox { text: "Fan Control Suite"; }
+                        cb_bios := CheckBox { text: "BIOS Verifier"; }
+                        cb_audio := CheckBox { text: "Audio Interface Checker"; }
+                        cb_ethernet := CheckBox { text: "Ethernet Statistics"; }
+                        cb_memory := CheckBox { text: "Memory Subsystem"; }
+                        cb_power := CheckBox { text: "Power Management"; }
+                        cb_storage_ai := CheckBox { text: "Storage AI Engine"; }
+                        cb_thermal_ai := CheckBox { text: "Thermal AI Predictor"; }
+                        cb_full_scan := CheckBox { text: "RUN FULL COMPREHENSIVE SCAN"; }
+                    }
+                }
+
+                Button {
+                    text: "EXECUTE SUITE";
+                    primary: true;
+                    background: accent_cyan;
+                    color: bg_main;
+                    border-color: accent_cyan;
+                    clicked => {
+                        // For now, we can pass a test hook back to Rust to show it works
+                        root.run_selected_modules("Execution triggered");
+                    }
+                }
+            }
+        }
+    }
+}

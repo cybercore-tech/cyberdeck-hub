@@ -1,0 +1,30 @@
+[package]
+name = "cyberdeck_core"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+# Make sure to keep the existing version number when adding features
+axum = { version = "0.7", features = ["macros"] }
+tokio = { version = "1.0", features = ["full", "rt-multi-thread"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = "0.4"
+clap = { version = "4.0", features = ["derive"] }
+tower-http = { version = "0.5", features = ["fs"] }
+open = "5.4.0"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+futures-util = "0.3"
+
+# shared CYBERGRID palette + design tokens — same bridge pattern as dockspace's
+# cybergrid.rs. Path dep since both live under ~/.sysops.
+cybercore = { path = "../cybercore" }
+
+[build-dependencies]
+# These will allow the script to scan the files and parse the text
+regex = "1.10"
+walkdir = "2.5"
+
+# Enable logging
+dirs = "6.0.0"

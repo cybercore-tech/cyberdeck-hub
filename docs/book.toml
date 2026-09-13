@@ -1,0 +1,10 @@
+[book]
+title = "CYBERDECK"
+authors = ["Darkstar"]
+description = "System Documentation"
+language = "en"
+
+[output.html]
+additional-css = ["theme/book.css"]
+no-section-label = true
+
