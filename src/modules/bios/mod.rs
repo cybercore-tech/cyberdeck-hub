@@ -148,6 +148,25 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
     write_to(&base_f, &format!("- Release: `{}`\n", uname_release.trim()))?;
     let cmdline = fs::read_to_string("/proc/cmdline").unwrap_or_default();
     write_to(&base_f, &format!("- Cmdline: `{}`\n", cmdline.trim()))?;
+    // Uptime (from /proc/uptime, seconds.subseconds — first field only)
+    // and taint status (0 = clean; any other value flags something like
+    // an out-of-tree or proprietary module loaded) — two real, cheap-to-
+    // read signals that were previously just missing entirely.
+    if let Ok(uptime_raw) = fs::read_to_string("/proc/uptime") {
+        if let Some(secs) = uptime_raw.split_whitespace().next().and_then(|s| s.parse::<f64>().ok()) {
+            let days = (secs / 86400.0) as u64;
+            let hours = ((secs % 86400.0) / 3600.0) as u64;
+            let mins = ((secs % 3600.0) / 60.0) as u64;
+            write_to(&base_f, &format!("- Uptime: {days}d {hours}h {mins}m\n"))?;
+        }
+    }
+    let tainted = fs::read_to_string("/proc/sys/kernel/tainted").unwrap_or_default();
+    write_to(&base_f, &format!(
+        "- Tainted: `{}`{}\n",
+        tainted.trim(),
+        if tainted.trim() == "0" { " (clean)" } else { " (see `dmesg | grep -i taint` for why)" }
+    ))?;
+    write_to(&base_f, "- Loaded modules: see the dedicated Kernel Modules scan\n")?;
     overwrite_to(&sub_kernel_f, "# 🧬 KERNEL\n")?;
     write_to(&sub_kernel_f, &crate::modules::utils::code_block("text", &uname_all))?;
     write_to(&sub_kernel_f, &format!("Cmdline: `{}`\n", cmdline.trim()))?;
@@ -157,7 +176,32 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
     overwrite_to(&sub_power_f, "# 🔋 POWER PROFILE\n")?;
     let cpupower_info = run_cmd("cpupower", &["frequency-info"]);
     if cpupower_info.contains("not available") {
-        write_to(&base_f, "cpupower not installed\n")?;
+        // cpupower isn't installed on this box — this used to just note
+        // that in base_f and leave sub_power_f completely empty (nothing
+        // but its own bare heading). The same governor/frequency data
+        // cpupower would report is directly readable from sysfs (same
+        // source power.rs's own dedicated scan already uses), so read
+        // that instead of leaving a real section with nothing in it.
+        write_to(&base_f, "`cpupower` not installed — reading governor/frequency from sysfs instead:\n\n")?;
+        let mut freq_table = String::from("| Core | Governor | Current MHz |\n|---|---|---|\n");
+        if let Ok(entries) = fs::read_dir("/sys/devices/system/cpu") {
+            let mut cores: Vec<_> = entries.flatten().collect();
+            cores.sort_by_key(|e| e.file_name());
+            for entry in cores {
+                let name = entry.file_name().into_string().unwrap_or_default();
+                if name.starts_with("cpu") && name[3..].chars().all(|c| c.is_ascii_digit()) {
+                    let gov = fs::read_to_string(entry.path().join("cpufreq/scaling_governor"))
+                        .unwrap_or_else(|_| "n/a".to_string());
+                    let freq_khz = fs::read_to_string(entry.path().join("cpufreq/scaling_cur_freq"))
+                        .ok()
+                        .and_then(|s| s.trim().parse::<f64>().ok());
+                    let mhz = freq_khz.map(|f| format!("{:.0}", f / 1000.0)).unwrap_or_else(|| "n/a".to_string());
+                    freq_table.push_str(&format!("| {} | {} | {} |\n", name, gov.trim(), mhz));
+                }
+            }
+        }
+        write_to(&base_f, &freq_table)?;
+        write_to(&sub_power_f, &freq_table)?;
     } else {
         write_to(&base_f, "### ⚙️ CPUPOWER INFO\n")?;
         write_to(&base_f, &crate::modules::utils::code_block("text", &cpupower_info))?;

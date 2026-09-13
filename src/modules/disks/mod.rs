@@ -60,17 +60,28 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
     writeln!(file, "<div style='background:#6a0dad;color:white;padding:6px;'>💾 CYBERDECK: DISK INTELLIGENCE SYSTEM</div>\n\nTimestamp: {}\n", timestamp)
     .map_err(|e| e.to_string())?;
 
-    // 2. Scan Block Devices
-    let lsblk_raw = run_cmd("lsblk", &["-dn", "-o", "NAME,TYPE"]);
-    let devices: Vec<String> = lsblk_raw.lines()
+    // 2. Scan Block Devices — SIZE pulled here too, since the index below
+    // used to show name/model/category only, with no capacity at all.
+    let lsblk_raw = run_cmd("lsblk", &["-dn", "-o", "NAME,SIZE,TYPE"]);
+    let devices: Vec<(String, String)> = lsblk_raw.lines()
     .filter(|l| l.contains("disk"))
-    .filter_map(|l| l.split_whitespace().next().map(|s| s.to_string()))
+    .filter_map(|l| {
+        let mut parts = l.split_whitespace();
+        let name = parts.next()?.to_string();
+        let size = parts.next().unwrap_or("?").to_string();
+        Some((name, size))
+    })
     .collect();
 
     // 3. Process each device
-    for dev in devices {
+    for (dev, size) in devices {
         let dev_path = format!("/dev/{}", dev);
         let model = fs::read_to_string(format!("/sys/block/{}/device/model", dev)).unwrap_or_else(|_| "Unknown".to_string());
+        let serial = fs::read_to_string(format!("/sys/block/{}/device/serial", dev))
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| "restricted or unavailable".to_string());
         let is_rotational = fs::read_to_string(format!("/sys/block/{}/queue/rotational", dev)).unwrap_or_else(|_| "0".to_string()).trim() == "1";
         let is_removable = fs::read_to_string(format!("/sys/block/{}/removable", dev)).unwrap_or_else(|_| "0".to_string()).trim() == "1";
 
@@ -81,8 +92,10 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
         else { "ssd" };
 
         let out_file = format!("{}/{}/{}.md", dir, category, dev);
-        let mut report = format!("# 💾 {} Drive: {}\n\n- **Model:** {}\n- **Category:** {}\n",
-                                 category.to_uppercase(), dev, model.trim(), category);
+        let mut report = format!(
+            "# 💾 {} Drive: {}\n\n- **Model:** {}\n- **Serial:** {}\n- **Size:** {}\n- **Category:** {}\n",
+            category.to_uppercase(), dev, model.trim(), serial, size, category,
+        );
 
         // Partition/Mount details
         let mount_info = run_cmd("lsblk", &["-o", "NAME,SIZE,TYPE,FSTYPE,MOUNTPOINT", &dev_path]);
@@ -105,7 +118,14 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
         report.push_str("\n```\n");
 
         fs::write(&out_file, report).map_err(|e| e.to_string())?;
-        writeln!(file, "- [{}]({}) - {} ({})\n", dev, out_file, model.trim(), category).map_err(|e| e.to_string())?;
+        // Was linking to a raw filesystem path (`./diagnostics/ssd/sda.md`)
+        // — meaningless as a URL, since the app serves reports at
+        // `/reports/<path-under-diagnostics>`, not the literal disk path.
+        writeln!(
+            file,
+            "- [{}](/reports/{}/{}.md) — {} ({}, {})\n",
+            dev, category, dev, model.trim(), size, category
+        ).map_err(|e| e.to_string())?;
     }
 
     Ok(base_f)

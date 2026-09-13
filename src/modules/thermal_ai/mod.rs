@@ -33,31 +33,42 @@ pub async fn execute(_state: &CyberdeckState, dir: &str) -> Result<String, Strin
     let mut report = format!("# 🌡️ CYBERDECK: THERMAL INTELLIGENCE\n\nTimestamp: {}\n\n", timestamp);
 
     let mut max_temp: f64 = 0.0;
+    let mut max_zone = String::new();
     let mut sensor_count = 0;
     let mut raw_data = String::new();
+    let mut zone_readings: Vec<(String, f64)> = Vec::new();
 
-    // 1. Attempt Kernel Thermal Zone Discovery
+    // 1. Attempt Kernel Thermal Zone Discovery — reads each zone's own
+    // `type` file for a real sensor name (x86_pkg_temp, acpitz,
+    // iwlwifi_1, ...) instead of a meaningless "Zone 1"/"Zone 2" index
+    // that told you nothing about which physical sensor it actually was.
     if let Ok(entries) = fs::read_dir("/sys/class/thermal") {
         let mut zones = Vec::new();
         for entry in entries.flatten() {
             let name = entry.file_name().into_string().unwrap_or_default();
             if name.starts_with("thermal_zone") {
-                zones.push(entry.path().join("temp"));
+                zones.push(entry.path());
             }
         }
+        zones.sort();
 
         if !zones.is_empty() {
-            report.push_str("## 📡 RAW SENSOR DATA\n");
-            for (index, path) in zones.iter().enumerate() {
-                if let Ok(raw_str) = fs::read_to_string(path) {
+            report.push_str("## 📡 RAW SENSOR DATA\n\n| Sensor | Temp |\n|---|---|\n");
+            for path in &zones {
+                let zone_type = fs::read_to_string(path.join("type"))
+                    .map(|s| s.trim().to_string())
+                    .unwrap_or_else(|_| "unknown".to_string());
+                if let Ok(raw_str) = fs::read_to_string(path.join("temp")) {
                     if let Ok(val) = raw_str.trim().parse::<f64>() {
                         let temp_c = val / 1000.0;
                         sensor_count += 1;
-                        max_temp = max_temp.max(temp_c);
-
-                        let line = format!("Zone {}: {:.2}°C\n", index + 1, temp_c);
-                        report.push_str(&line);
-                        raw_data.push_str(&format!("{:.2}\n", temp_c));
+                        if temp_c > max_temp {
+                            max_temp = temp_c;
+                            max_zone = zone_type.clone();
+                        }
+                        report.push_str(&format!("| {} | {:.2}°C |\n", zone_type, temp_c));
+                        raw_data.push_str(&format!("{}: {:.2}\n", zone_type, temp_c));
+                        zone_readings.push((zone_type, temp_c));
                     }
                 }
             }
@@ -79,13 +90,23 @@ pub async fn execute(_state: &CyberdeckState, dir: &str) -> Result<String, Strin
 
     // 3. Generate Summaries
     report.push_str("\n## 🧠 THERMAL SUMMARY\n");
-    report.push_str(&format!("- Peak temperature: {:.2}°C\n", max_temp));
+    report.push_str(&format!("- Peak temperature: {:.2}°C ({})\n", max_temp, if max_zone.is_empty() { "n/a" } else { &max_zone }));
     report.push_str(&format!("- Sensors detected: {}\n", sensor_count));
+
+    // parsed_temps.md used to be just "Peak: X / Sensors: N" — the same
+    // per-zone breakdown the main report has, condensed for a quick read.
+    let mut parsed = format!(
+        "# Parsed Temperatures\n\nPeak: {:.2}°C ({})\nSensors: {}\n\n",
+        max_temp, if max_zone.is_empty() { "n/a" } else { &max_zone }, sensor_count
+    );
+    for (name, temp) in &zone_readings {
+        parsed.push_str(&format!("- {}: {:.2}°C\n", name, temp));
+    }
 
     // Write all artifacts
     fs::write(&base_f, report).map_err(|e| e.to_string())?;
     fs::write(&raw_f, raw_data).map_err(|e| e.to_string())?;
-    fs::write(&parsed_f, format!("Peak: {:.2}°C\nSensors: {}\n", max_temp, sensor_count)).map_err(|e| e.to_string())?;
+    fs::write(&parsed_f, parsed).map_err(|e| e.to_string())?;
 
     Ok(base_f)
 }

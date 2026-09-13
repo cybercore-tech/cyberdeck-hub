@@ -8,6 +8,14 @@ Type=simple
 User=raven
 Group=raven
 WorkingDirectory=/home/raven/.sysops/cyberdeck
+# Without this, pactl/pw-cli calls from inside this service can't reach
+# the real desktop session's PipeWire/PulseAudio socket at all — a
+# system-scope unit has no XDG_RUNTIME_DIR/D-Bus session by default, so
+# every audio-related scan silently came back empty (not "not
+# installed" — genuinely unreachable, which is a different failure mode
+# than the ones .rs code can detect and report on).
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
 ExecStart=/home/raven/.cargo-target/release/cyberdeck_core
 Restart=on-failure
 RestartSec=5

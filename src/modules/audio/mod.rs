@@ -52,16 +52,27 @@ pub async fn execute(_state: &CyberdeckState, dir: &str) -> Result<String, Strin
     // 3. Write System Overview
     write_to(&base_f, "\n# 🎧 PIPEWIRE AUDIO INTELLIGENCE\n\n## 📊 SYSTEM OVERVIEW\n- Stack: PipeWire + WirePlumber + Pulse compatibility\n")?;
 
-    // Helper: Executes system shell commands
+    // Helper: Executes system shell commands. Checks the *exit status*,
+    // not just whether the process spawned — `pactl`/`pw-cli` are both
+    // installed on this box, so they always spawn successfully, but a
+    // system-scope systemd service has no XDG_RUNTIME_DIR/D-Bus session
+    // by default and every one of them failed with "Connection refused" /
+    // "Host is down" on stderr, which the old version silently discarded
+    // (it only captured stdout) — every audio report went quietly blank
+    // instead of saying why.
     let run_cmd = |args: &[&str]| -> String {
         if args.is_empty() {
             return String::new();
         }
-        Command::new(args[0])
-        .args(&args[1..])
-        .output()
-        .map(|out| String::from_utf8_lossy(&out.stdout).to_string())
-        .unwrap_or_else(|_| format!("{} not available\n", args[0]))
+        match Command::new(args[0]).args(&args[1..]).output() {
+            Ok(out) if out.status.success() => String::from_utf8_lossy(&out.stdout).to_string(),
+            Ok(out) => format!(
+                "{} failed: {}",
+                args[0],
+                String::from_utf8_lossy(&out.stderr).trim()
+            ),
+            Err(_) => format!("{} not available", args[0]),
+        }
     };
 
     // 4. Pipewire Services
