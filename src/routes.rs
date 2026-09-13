@@ -141,16 +141,21 @@ fn safe_diagnostics_path(rel: &str) -> Option<std::path::PathBuf> {
     Some(std::path::Path::new("diagnostics").join(rel))
 }
 
-pub async fn report_view(AxPath(rel_path): AxPath<String>) -> Html<String> {
+pub async fn report_view(AxPath(rel_path): AxPath<String>) -> impl IntoResponse {
     // Several modules write into a sub-directory (cpu/cpu.md,
     // battery/battery.md, per-device/per-iface files, ...) — this route is
     // a wildcard (`/reports/*path`) so those work too.
+    //
+    // no-store: a report's content changes every time its scan re-runs at
+    // the same path, and browsers will otherwise happily serve a stale
+    // fetch()/navigation from cache with no explicit signal not to.
+    let no_cache = [(axum::http::header::CACHE_CONTROL, "no-store")];
     let Some(path) = safe_diagnostics_path(&rel_path) else {
-        return page("Reports", "<p>invalid report path</p>".to_string());
+        return (no_cache, page("Reports", "<p>invalid report path</p>".to_string()));
     };
     let content = std::fs::read_to_string(&path).unwrap_or_else(|_| "not found".to_string());
     let title = present::extract_title(&content, &rel_path);
-    page("Reports", views::report_view(&title, &rel_path, &content))
+    (no_cache, page("Reports", views::report_view(&title, &rel_path, &content)))
 }
 
 /// The same content as `report_view`, rendered without page chrome — for
@@ -161,14 +166,20 @@ pub async fn report_view(AxPath(rel_path): AxPath<String>) -> Html<String> {
 pub async fn report_fragment(AxPath(rel_path): AxPath<String>) -> impl IntoResponse {
     let Some(path) = safe_diagnostics_path(&rel_path) else {
         return (
-            [("X-Report-Title", "Invalid path".to_string())],
+            [
+                (axum::http::header::CACHE_CONTROL.as_str(), "no-store".to_string()),
+                ("X-Report-Title", "Invalid path".to_string()),
+            ],
             Html("<p>invalid report path</p>".to_string()),
         );
     };
     let content = std::fs::read_to_string(&path).unwrap_or_else(|_| "not found".to_string());
     let title = present::extract_title(&content, &rel_path);
     (
-        [("X-Report-Title", title)],
+        [
+            (axum::http::header::CACHE_CONTROL.as_str(), "no-store".to_string()),
+            ("X-Report-Title", title),
+        ],
         Html(views::report_fragment(&content)),
     )
 }
