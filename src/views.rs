@@ -65,13 +65,17 @@ pub fn layout(active_theme: &str, theme_options: &str, nav_active: &str, body: &
     </div>
     <div class="viewer-body">
       <div class="markdown-body" style="max-height:none;">
-        <p class="muted" style="margin-top:0;">Not added to the shared CYBERGRID palette (that's compiled in and needs a rebuild) — this is a local custom theme saved to this browser's storage only.</p>
+        <p class="muted" style="margin-top:0;">Not added to the shared CYBERGRID palette (that's compiled in and needs a rebuild) — this is a local custom theme saved to this browser's storage only. The whole page repaints live as you edit — this window included.</p>
         <label class="field-label" for="ct-name">Name</label>
         <input id="ct-name" class="text-input" placeholder="my-custom-theme" style="width:100%;margin-bottom:0.75rem;">
+        <div class="card-actions" style="margin-bottom:0.75rem;">
+          <button type="button" onclick="document.getElementById('ct-file-input').click()">Import from file&hellip;</button>
+          <input type="file" id="ct-file-input" accept=".json,application/json" hidden onchange="loadThemeFromFile(event)">
+          <span class="muted" style="font-size:0.72rem;">a cybercore palette JSON — the same shape as any file under cybercore/schema/themes/</span>
+        </div>
         <div id="ct-swatches" class="ct-grid"></div>
       </div>
       <div class="viewer-actions">
-        <button onclick="previewCustomTheme()">Preview</button>
         <button onclick="saveCustomTheme()">Save</button>
         <button onclick="closeThemeCreator()">Close</button>
       </div>
@@ -193,19 +197,59 @@ function openThemeCreator() {{
   grid.innerHTML = CT_ROLES.map(role => {{
     const current = computed.getPropertyValue('--' + role).trim() || '#888888';
     return '<label class="ct-swatch">' + role +
-      '<input type="color" id="ct-' + role + '" value="' + current + '"></label>';
+      '<input type="color" id="ct-' + role + '" value="' + current + '" oninput="previewCustomTheme()"></label>';
   }}).join('');
   document.getElementById('theme-creator-overlay').hidden = false;
 }}
 function closeThemeCreator() {{
   const el = document.getElementById('theme-creator-overlay');
   if (el) el.hidden = true;
+  // Revert to whatever was actually saved/active — closing without Save
+  // shouldn't leave an unsaved preview painted over the real theme.
+  applyTheme(localStorage.getItem('cyberdeck-theme') || '{active_theme}');
 }}
 function customThemeCss() {{
   return ':root{{' + CT_ROLES.map(role => '--' + role + ':' + document.getElementById('ct-' + role).value + ';').join('') + '}}';
 }}
 function previewCustomTheme() {{
   document.getElementById('theme-vars').textContent = customThemeCss();
+}}
+// Accepts the exact same JSON shape as a real cybercore theme file
+// (schema/themes/<family>/<slug>.json — bare hex, no leading '#', field
+// names bg/white/acid_green/hot_pink/purple/cyan/orange/red/panel/line/
+// muted) so any of the 72 shipped themes, or a hand-authored file
+// following that schema, can be dropped in directly.
+const CT_FILE_KEY_MAP = {{
+  bg: 'bg', white: 'fg', acid_green: 'acid', hot_pink: 'pink', purple: 'purple',
+  cyan: 'cyan', orange: 'orange', red: 'red', panel: 'panel', line: 'line', muted: 'muted'
+}};
+function loadThemeFromFile(event) {{
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {{
+    let data;
+    try {{ data = JSON.parse(reader.result); }} catch (e) {{
+      alert('Not valid JSON.'); return;
+    }}
+    let applied = 0;
+    Object.entries(CT_FILE_KEY_MAP).forEach(([jsonKey, role]) => {{
+      const raw = data[jsonKey];
+      if (typeof raw !== 'string' || !raw) return;
+      const hex = raw.startsWith('#') ? raw : '#' + raw;
+      const input = document.getElementById('ct-' + role);
+      if (input) {{ input.value = hex; applied++; }}
+    }});
+    if (!applied) {{
+      alert('That JSON has none of the expected fields (bg, white, acid_green, hot_pink, purple, cyan, orange, red, panel, line, muted) — expected the cybercore palette shape.');
+      return;
+    }}
+    if (!document.getElementById('ct-name').value.trim()) {{
+      document.getElementById('ct-name').value = file.name.replace(/\.json$/i, '');
+    }}
+    previewCustomTheme();
+  }};
+  reader.readAsText(file);
 }}
 function saveCustomTheme() {{
   const name = document.getElementById('ct-name').value.trim();

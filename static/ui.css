@@ -173,16 +173,23 @@ main { max-width: 1300px; margin: 0 auto; padding: 1.5rem; }
 /* The title itself is a real pill — a filled, bordered, glowing badge,
    same visual weight as a .btn-link chip — not just glowing bare text. */
 .dash-head h1 {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   margin: 0 0 0.5rem;
-  padding: 0.25rem 0.85rem;
-  border-radius: 20px;
-  font-size: 1rem;
+  padding: 0.15rem 0.65rem;
+  border-radius: 14px;
+  font-size: 0.82rem;
   text-transform: uppercase;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.5px;
   color: var(--purple);
-  background: color-mix(in srgb, var(--purple) 18%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--purple) 24%, transparent), color-mix(in srgb, var(--purple) 8%, transparent));
   border: 1px solid color-mix(in srgb, var(--purple) 50%, transparent);
+}
+.dash-head h1::before {
+  content: "◆";
+  font-size: 0.75em;
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--purple) 80%, transparent));
 }
 @media (prefers-reduced-motion: no-preference) {
   .dash-head h1 { animation: title-pulse 3s ease-in-out infinite; }
@@ -191,7 +198,7 @@ main { max-width: 1300px; margin: 0 auto; padding: 1.5rem; }
     50% { box-shadow: 0 0 16px 1px color-mix(in srgb, var(--purple) 80%, transparent); }
   }
 }
-.dash-head p { font-size: 0.82rem; }
+.dash-head p { font-size: 0.75rem; }
 .muted { color: var(--muted); }
 
 /* --------------------------------------------------------------------------
@@ -284,7 +291,7 @@ details[open] > .cat-head .cat-caret { transform: rotate(90deg); }
   display: inline-flex; align-items: center; justify-content: center; line-height: 1.2;
   background: color-mix(in srgb, var(--cyan) 12%, transparent);
   color: var(--cyan); border: 1px solid color-mix(in srgb, var(--cyan) 45%, transparent);
-  padding: 0.3rem 0.7rem; border-radius: 3px; font-size: 0.78rem;
+  padding: 0.22rem 0.6rem; border-radius: 3px; font-size: 0.72rem;
   text-decoration: none; cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
@@ -299,15 +306,23 @@ details[open] > .cat-head .cat-caret { transform: rotate(90deg); }
    (see present::folder_color / the JS folderColor() mirror).
    -------------------------------------------------------------------------- */
 .folder-chip {
-  display: inline-block;
-  background: color-mix(in srgb, var(--chip-color, var(--muted)) 16%, transparent);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--chip-color, var(--muted)) 22%, transparent), color-mix(in srgb, var(--chip-color, var(--muted)) 6%, transparent));
   color: var(--chip-color, var(--muted));
   border: 1px solid color-mix(in srgb, var(--chip-color, var(--muted)) 40%, transparent);
   border-radius: 10px;
   padding: 0.1rem 0.55rem;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.3px;
+}
+.folder-chip::before {
+  content: "";
+  width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0;
+  background: var(--chip-color, var(--muted));
+  box-shadow: 0 0 4px 1px color-mix(in srgb, var(--chip-color, var(--muted)) 75%, transparent);
 }
 /* "root" means the report has no folder of its own — a square (not
    pill-rounded) red badge that pulses, standing apart from the calm
@@ -461,6 +476,10 @@ select.text-input option {
   position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1000;
   display: flex; align-items: center; justify-content: center; padding: 2rem;
 }
+/* Lighter scrim specifically for the theme creator — the whole point is
+   watching the real page repaint live as colors change, which a near-
+   opaque backdrop mostly defeats. */
+#theme-creator-overlay { background: rgba(0,0,0,0.35); }
 .viewer-window {
   width: min(900px, 100%); max-height: 85vh; display: flex; flex-direction: column;
 }
