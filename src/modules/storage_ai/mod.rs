@@ -40,17 +40,14 @@ pub async fn execute(_state: &CyberdeckState, dir: &str) -> Result<String, Strin
     };
 
     // 2. Block Device Mapping
-    report.push_str("## 🧩 BLOCK DEVICE MAP\n```text\n");
-    report.push_str(&run_cmd(
-        "lsblk",
-        &["-o", "NAME,SIZE,MODEL,TYPE,MOUNTPOINT,FSTYPE"],
-    ));
-    report.push_str("```\n");
+    report.push_str("## 🧩 BLOCK DEVICE MAP\n");
+    let lsblk_out = run_cmd("lsblk", &["-o", "NAME,SIZE,MODEL,TYPE,MOUNTPOINT,FSTYPE"]);
+    report.push_str(&crate::modules::utils::code_block("text", &lsblk_out));
 
     // 3. File System Usage
-    report.push_str("\n## 📊 FILESYSTEM ALLOCATION\n```text\n");
-    report.push_str(&run_cmd("df", &["-h"]));
-    report.push_str("```\n");
+    report.push_str("\n## 📊 FILESYSTEM ALLOCATION\n");
+    let df_out = run_cmd("df", &["-h"]);
+    report.push_str(&crate::modules::utils::code_block("text", &df_out));
 
     // 4. Device Classification & SMART Intelligence
     report.push_str("\n## 🧠 DEVICE CLASSIFICATION & HEALTH\n");
@@ -85,7 +82,8 @@ pub async fn execute(_state: &CyberdeckState, dir: &str) -> Result<String, Strin
 
     // 5. Encryption Layer Audit
     report.push_str("\n## 🔐 ENCRYPTION LAYER (LUKS)\n");
-    report.push_str(&run_cmd("lsblk", &["-f"]));
+    let luks_out = run_cmd("lsblk", &["-f"]);
+    report.push_str(&crate::modules::utils::code_block("text", &luks_out));
 
     fs::write(&base_f, report).map_err(|e| e.to_string())?;
     Ok(base_f)

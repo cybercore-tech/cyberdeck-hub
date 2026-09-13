@@ -116,41 +116,41 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
     // 5. Processor Diagnostics
     write_to(&base_f, "\n## 🧠 CPU\n")?;
     let lscpu_out = run_cmd("lscpu", &[]);
-    write_to(&base_f, &lscpu_out)?;
+    write_to(&base_f, &crate::modules::utils::code_block("text", &lscpu_out))?;
     overwrite_to(&sub_cpu_f, "# 🧠 CPU\n")?;
-    write_to(&sub_cpu_f, &lscpu_out)?;
+    write_to(&sub_cpu_f, &crate::modules::utils::code_block("text", &lscpu_out))?;
     if let Ok(cpuinfo) = fs::read_to_string("/proc/cpuinfo") {
-        write_to(&sub_cpu_f, &cpuinfo)?;
+        write_to(&sub_cpu_f, &crate::modules::utils::code_block("text", &cpuinfo))?;
     }
 
     // 6. Chipset Hardware Components
     write_to(&base_f, "\n## 🔌 CHIPSET / PCI\n")?;
     let lspci_out = run_cmd("lspci", &[]);
-    write_to(&base_f, &lspci_out)?;
+    write_to(&base_f, &crate::modules::utils::code_block("text", &lspci_out))?;
     overwrite_to(&sub_chipset_f, "# 🔌 CHIPSET\n")?;
-    write_to(&sub_chipset_f, &lspci_out)?;
+    write_to(&sub_chipset_f, &crate::modules::utils::code_block("text", &lspci_out))?;
 
     // 7. Memory Profile
     write_to(&base_f, "\n## 🧠 MEMORY\n")?;
     let free_out = run_cmd("free", &["-h"]);
-    write_to(&base_f, &free_out)?;
+    write_to(&base_f, &crate::modules::utils::code_block("text", &free_out))?;
     overwrite_to(&sub_mem_f, "# 🧠 MEMORY\n")?;
-    write_to(&sub_mem_f, &free_out)?;
+    write_to(&sub_mem_f, &crate::modules::utils::code_block("text", &free_out))?;
     write_to(
         &sub_mem_f,
         "\nPer-DIMM detail (`dmidecode -t memory`) needs root — not \
          available to this unattended service; the usage stats above are.\n",
     )?;
 
-    // 8. Kernel Parameters
+    // 8. Kernel Parameters — single-line values, no fence needed.
     write_to(&base_f, "\n## 🧬 KERNEL\n")?;
     let uname_release = run_cmd("uname", &["-r"]);
-    write_to(&base_f, &uname_release)?;
+    write_to(&base_f, &format!("- Release: `{}`\n", uname_release.trim()))?;
     let cmdline = fs::read_to_string("/proc/cmdline").unwrap_or_default();
-    write_to(&base_f, &format!("{}\n", cmdline))?;
+    write_to(&base_f, &format!("- Cmdline: `{}`\n", cmdline.trim()))?;
     overwrite_to(&sub_kernel_f, "# 🧬 KERNEL\n")?;
-    write_to(&sub_kernel_f, &uname_all)?;
-    write_to(&sub_kernel_f, &format!("{}\n", cmdline))?;
+    write_to(&sub_kernel_f, &crate::modules::utils::code_block("text", &uname_all))?;
+    write_to(&sub_kernel_f, &format!("Cmdline: `{}`\n", cmdline.trim()))?;
 
     // 9. Power Profile Mapping
     write_to(&base_f, "\n## 🔋 POWER & CPU CONTROL\n")?;
@@ -160,12 +160,16 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
         write_to(&base_f, "cpupower not installed\n")?;
     } else {
         write_to(&base_f, "### ⚙️ CPUPOWER INFO\n")?;
-        write_to(&base_f, &cpupower_info)?;
-        write_to(&sub_power_f, &cpupower_info)?;
+        write_to(&base_f, &crate::modules::utils::code_block("text", &cpupower_info))?;
+        write_to(&sub_power_f, &crate::modules::utils::code_block("text", &cpupower_info))?;
     }
 
-    // 10. Live Frequency Matrix
+    // 10. Live Frequency Matrix — built up line-by-line in the loop below,
+    // so it has to be accumulated into one string first and wrapped in a
+    // single fence afterward; fencing each line individually would open
+    // and close a separate code block per CPU core.
     write_to(&base_f, "\n### 📊 CPU FREQUENCY SNAPSHOT\n")?;
+    let mut freq_lines = String::new();
     if let Ok(entries) = fs::read_dir("/sys/devices/system/cpu") {
         for entry in entries.flatten() {
             let name = entry.file_name().into_string().unwrap_or_default();
@@ -173,11 +177,14 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
                 let freq_path = format!("/sys/devices/system/cpu/{}/cpufreq/scaling_cur_freq", name);
                 if let Ok(raw_freq_str) = fs::read_to_string(freq_path) {
                     if let Ok(raw_freq) = raw_freq_str.trim().parse::<f64>() {
-                        write_to(&base_f, &format!("{}: {:.2} MHz\n", name, raw_freq / 1000.0))?;
+                        freq_lines.push_str(&format!("{}: {:.2} MHz\n", name, raw_freq / 1000.0));
                     }
                 }
             }
         }
+    }
+    if !freq_lines.is_empty() {
+        write_to(&base_f, &crate::modules::utils::code_block("text", &freq_lines))?;
     }
 
     Ok(base_f)
