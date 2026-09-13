@@ -32,10 +32,33 @@ html {
   scrollbar-color: var(--purple) var(--bg);
 }
 
+/* Self-hosted JetBrainsMono Nerd Font — a patched terminal font (extra
+   powerline/glyph coverage) already installed system-wide for the
+   desktop's own terminal, converted to woff2 so the browser doesn't
+   depend on that being true for whoever's viewing it. Layered in front
+   of cybercore's own --font-mono rather than editing that shared
+   stylesheet, which every other tool in this ecosystem also depends on. */
+@font-face {
+  font-family: "JBMono Nerd";
+  src: url("/static/fonts/jbm-nerd-regular.woff2") format("woff2");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "JBMono Nerd";
+  src: url("/static/fonts/jbm-nerd-bold.woff2") format("woff2");
+  font-weight: 700; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "JBMono Nerd";
+  src: url("/static/fonts/jbm-nerd-italic.woff2") format("woff2");
+  font-weight: 400; font-style: italic; font-display: swap;
+}
+
 body {
   background: var(--bg);
   color: var(--fg);
-  font-family: var(--font-mono, monospace);
+  font-family: "JBMono Nerd", var(--font-mono, monospace);
+  font-size: 13px;
   margin: 0;
   position: relative;
 }
@@ -136,32 +159,39 @@ body {
 
 main { max-width: 1300px; margin: 0 auto; padding: 1.5rem; }
 
-/* Page header as its own glowing pane — a translucent purple panel, not
-   just styled text sitting bare on the page background. */
+/* Page header pane — a calm dark panel (not itself saturated purple, so
+   it doesn't fight with the title pill sitting inside it). */
 .dash-head {
-  background: color-mix(in srgb, var(--purple) 10%, var(--bg));
-  border: 1px solid color-mix(in srgb, var(--purple) 40%, transparent);
+  background: color-mix(in srgb, var(--panel) 55%, var(--bg));
+  border: 1px solid color-mix(in srgb, var(--purple) 30%, transparent);
   border-radius: 4px;
   padding: 1rem 1.25rem;
   margin-bottom: 1.5rem;
-  box-shadow: 0 0 28px -6px color-mix(in srgb, var(--purple) 55%, transparent),
+  box-shadow: 0 0 24px -8px color-mix(in srgb, var(--purple) 45%, transparent),
               inset 0 1px 0 color-mix(in srgb, var(--fg) 6%, transparent);
 }
+/* The title itself is a real pill — a filled, bordered, glowing badge,
+   same visual weight as a .btn-link chip — not just glowing bare text. */
 .dash-head h1 {
-  margin: 0 0 0.3rem;
-  font-size: 1.4rem;
+  display: inline-block;
+  margin: 0 0 0.5rem;
+  padding: 0.25rem 0.85rem;
+  border-radius: 20px;
+  font-size: 1rem;
   text-transform: uppercase;
   letter-spacing: 0.6px;
   color: var(--purple);
-  text-shadow: 0 0 12px color-mix(in srgb, var(--purple) 60%, transparent);
+  background: color-mix(in srgb, var(--purple) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--purple) 50%, transparent);
 }
 @media (prefers-reduced-motion: no-preference) {
   .dash-head h1 { animation: title-pulse 3s ease-in-out infinite; }
   @keyframes title-pulse {
-    0%, 100% { text-shadow: 0 0 10px color-mix(in srgb, var(--purple) 55%, transparent); }
-    50% { text-shadow: 0 0 20px color-mix(in srgb, var(--purple) 85%, transparent); }
+    0%, 100% { box-shadow: 0 0 8px -2px color-mix(in srgb, var(--purple) 50%, transparent); }
+    50% { box-shadow: 0 0 16px 1px color-mix(in srgb, var(--purple) 80%, transparent); }
   }
 }
+.dash-head p { font-size: 0.82rem; }
 .muted { color: var(--muted); }
 
 /* --------------------------------------------------------------------------
