@@ -69,6 +69,15 @@ pub const TOOLS: &[Tool] = &[
         wiki_path: None,
     },
     Tool {
+        name: "Darkbox SysTools",
+        category: "Hub & Docker",
+        description: "Live system control console — config editor, root shell, package updates. Privileged, token-gated.",
+        repo_path: "~/.sysops/darkbox_systools",
+        probe: Probe::Port(9200),
+        open_url: Some("http://127.0.0.1:9200"),
+        wiki_path: None,
+    },
+    Tool {
         name: "Cybercore Wiki",
         category: "Hub & Docker",
         description: "Reference docs for every authored app — mdBook, live-reloading.",
