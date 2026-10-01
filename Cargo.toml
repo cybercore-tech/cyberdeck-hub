@@ -20,7 +20,7 @@ pulldown-cmark = "0.12"
 
 # shared CYBERGRID palette + design tokens — same bridge pattern as dockspace's
 # cybergrid.rs. Path dep since both live under ~/.sysops.
-cybercore = { path = "../cybercore" }
+cybercore = { path = "/home/raven/.sysops/cybercore" }
 
 [build-dependencies]
 # These will allow the script to scan the files and parse the text
