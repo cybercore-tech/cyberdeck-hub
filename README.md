@@ -119,15 +119,15 @@ cyberdeck scan --full
 ## 🤝 Contributing
 
 Want to contribute by adding to our Lua Module Development, UI/UX Design? How about writing Rust modules, or Documentation?
-*Contact us*: [cybercore.sh+cyberdeck@gmail.com] (mailto:cybercore.sh+cyberdeck@gmail.com)
+*Contact us*: [cybercore.sh+cyberdeck@gmail.com](mailto:cybercore.sh+cyberdeck@gmail.com)
 
 ---
 
 ## ⚖️ Namespace & Legal Attribution
 
-This project is an independent component of the **Cybercore Systems Framework** hosted canonically at [subgridsec.org](https://subgridsec.org).
+This project is an independent component of the **Cybercore** framework by **[CYBERCORE TECH](https://cybercoretech.net/)**: a connected ecosystem of Rust-first tools, security systems, Omarchy extensions and operator workflows built around one shared source of truth.
 
-**Copyright (c) 2026 Cybercore Tech (subgridsec.org)**
+**Copyright (c) 2026 CYBERCORE TECH ([cybercoretech.net](https://cybercoretech.net/))**
 
 <details>
 <summary><b>🛡️ Defensive Guardrail Statement</b></summary>
