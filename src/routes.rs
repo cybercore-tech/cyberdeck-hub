@@ -151,11 +151,17 @@ pub async fn report_view(AxPath(rel_path): AxPath<String>) -> impl IntoResponse 
     // fetch()/navigation from cache with no explicit signal not to.
     let no_cache = [(axum::http::header::CACHE_CONTROL, "no-store")];
     let Some(path) = safe_diagnostics_path(&rel_path) else {
-        return (no_cache, page("Reports", "<p>invalid report path</p>".to_string()));
+        return (axum::http::StatusCode::BAD_REQUEST, no_cache, page("Reports", "<p>invalid report path</p>".to_string()));
     };
-    let content = std::fs::read_to_string(&path).unwrap_or_else(|_| "not found".to_string());
+    let Ok(content) = std::fs::read_to_string(&path) else {
+        return (
+            axum::http::StatusCode::NOT_FOUND,
+            no_cache,
+            page("Reports", views::report_missing(&rel_path)),
+        );
+    };
     let title = present::extract_title(&content, &rel_path);
-    (no_cache, page("Reports", views::report_view(&title, &rel_path, &content)))
+    (axum::http::StatusCode::OK, no_cache, page("Reports", views::report_view(&title, &rel_path, &content)))
 }
 
 /// The same content as `report_view`, rendered without page chrome — for
@@ -166,6 +172,7 @@ pub async fn report_view(AxPath(rel_path): AxPath<String>) -> impl IntoResponse 
 pub async fn report_fragment(AxPath(rel_path): AxPath<String>) -> impl IntoResponse {
     let Some(path) = safe_diagnostics_path(&rel_path) else {
         return (
+            axum::http::StatusCode::BAD_REQUEST,
             [
                 (axum::http::header::CACHE_CONTROL.as_str(), "no-store".to_string()),
                 ("X-Report-Title", "Invalid path".to_string()),
@@ -173,9 +180,19 @@ pub async fn report_fragment(AxPath(rel_path): AxPath<String>) -> impl IntoRespo
             Html("<p>invalid report path</p>".to_string()),
         );
     };
-    let content = std::fs::read_to_string(&path).unwrap_or_else(|_| "not found".to_string());
+    let Ok(content) = std::fs::read_to_string(&path) else {
+        return (
+            axum::http::StatusCode::NOT_FOUND,
+            [
+                (axum::http::header::CACHE_CONTROL.as_str(), "no-store".to_string()),
+                ("X-Report-Title", "No report yet".to_string()),
+            ],
+            Html(views::report_missing_fragment(&rel_path)),
+        );
+    };
     let title = present::extract_title(&content, &rel_path);
     (
+        axum::http::StatusCode::OK,
         [
             (axum::http::header::CACHE_CONTROL.as_str(), "no-store".to_string()),
             ("X-Report-Title", title),

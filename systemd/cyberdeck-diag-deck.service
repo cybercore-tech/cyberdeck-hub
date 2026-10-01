@@ -1,6 +1,6 @@
 [Unit]
 Description=Cyberdeck Diagnostic Output — markdown deck over cyberdeck's diagnostics (127.0.0.1:8766)
-Documentation=https://github.com/darkstardevx/cyberdesk
+Documentation=https://github.com/cybercore-tech/cyberdesk
 After=network.target cyberdeck.service
 
 [Service]
