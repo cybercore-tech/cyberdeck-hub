@@ -7,7 +7,7 @@
 > **Status:** *Under Active Development* | **Language:** Rust *(2021)*
 > 
 > **Current Version:**
-> [Stable v1.1.0] (https://github.com/darkstardevx/cyberdeck/releases/tag/v1.1.0) 
+> [Stable v1.1.0](https://github.com/cybercore-tech/cyberdeck/releases/tag/v1.1.0) 
 > 
 > **🛡️ <mark>Engineering Note</mark>: [Stack Stability]**
 
@@ -99,7 +99,7 @@ sudo pacman -Syu lshw pciutils usbutils lm_sensors iproute2
 
 ```bash
 # Clone the repository
-git clone https://github.com/darkstardevx/cyberdeck.git
+git clone https://github.com/cybercore-tech/cyberdeck.git
 cd cyberdeck
 
 # Run the panel (Opens @ 127.0.0.1:8080)
