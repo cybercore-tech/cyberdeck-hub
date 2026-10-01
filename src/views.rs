@@ -734,6 +734,29 @@ pub fn report_view(title: &str, path: &str, content: &str) -> String {
 <div class="markdown-body">{}</div>"#,
         render_markdown(content),
         title = escape(title),
+        path = escape(path),
+    )
+}
+
+/// Shown (with a 404) when a report path is valid but nothing has been
+/// written there yet — usually because its scan has never run.
+pub fn report_missing(path: &str) -> String {
+    format!(
+        r#"<div class="dash-head">
+  <h1>No report yet</h1>
+  <p class="muted"><code>diagnostics/{path}</code></p>
+  <p>Nothing has been written here yet — run its scan to generate it.</p>
+  <p><a class="btn-ghost" href="/scans">Go to scans</a> <a class="btn-ghost" href="/reports">&larr; back to reports</a></p>
+</div>"#,
+        path = escape(path),
+    )
+}
+
+/// Fragment form of [`report_missing`] for the popup viewer.
+pub fn report_missing_fragment(path: &str) -> String {
+    format!(
+        r#"<p>No report at <code>diagnostics/{}</code> yet — run its scan from <a href="/scans">Scans</a>.</p>"#,
+        escape(path)
     )
 }
 
