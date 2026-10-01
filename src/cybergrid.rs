@@ -19,9 +19,17 @@ use std::collections::BTreeMap;
 /// re-export of a few themes that live under other families too — a
 /// slug-prefix heuristic would misfile or duplicate those.
 pub fn theme_families() -> BTreeMap<String, Vec<String>> {
-    let themes_dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../cybercore/schema/themes");
     let mut families = BTreeMap::new();
-    let Ok(rd) = std::fs::read_dir(themes_dir) else { return families };
+    let Some(rd) = themes_dir().and_then(|d| std::fs::read_dir(d).ok()) else {
+        // No schema folder on this machine: still offer every embedded
+        // theme, as one group, rather than an empty menu.
+        let schema = cybercore::schema::load();
+        families.insert(
+            "all".to_string(),
+            schema.theme_names().map(str::to_string).collect(),
+        );
+        return families;
+    };
     for family_entry in rd.filter_map(|e| e.ok()) {
         if !family_entry.path().is_dir() {
             continue;
@@ -41,6 +49,22 @@ pub fn theme_families() -> BTreeMap<String, Vec<String>> {
         families.insert(family, slugs);
     }
     families
+}
+
+/// cybercore's `schema/themes` folder. The hub has been checked out next to
+/// cybercore (darkbox: `~/.sysops/{cyberdeck,cybercore}`) and in the
+/// Devspace layout (`core/cyberdeck-hub` + `framework/cybercore`), so try
+/// both, then the `~/.sysops/cybercore` link.
+fn themes_dir() -> Option<std::path::PathBuf> {
+    let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let mut candidates = vec![
+        manifest.join("../cybercore/schema/themes"),
+        manifest.join("../../framework/cybercore/schema/themes"),
+    ];
+    if let Some(home) = std::env::var_os("HOME") {
+        candidates.push(std::path::Path::new(&home).join(".sysops/cybercore/schema/themes"));
+    }
+    candidates.into_iter().find(|d| d.is_dir())
 }
 
 fn role_map(name: &str, p: &cybercore::schema::Palette) -> Value {
