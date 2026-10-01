@@ -27,5 +27,5 @@ Every contribution directly offsets out-of-pocket maintenance costs and keeps th
 
 If you want to help keep the infrastructure online (Linode, Cloudflare, and backups), you can contribute directly through:
 
-* [Buy Me a Coffee](https://buymeacoffee.com/darkstardevx)
+* [Buy Me a Coffee](https://buymeacoffee.com/cybercoretech)
 * [PayPal](https://paypal.me/elementxdesign)
