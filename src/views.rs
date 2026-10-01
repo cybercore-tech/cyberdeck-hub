@@ -358,8 +358,8 @@ fn status_label(probe: &Probe, h: Health) -> &'static str {
     match (probe, h) {
         (Probe::Port(_), Health::Up) => "ONLINE",
         (Probe::Port(_), Health::Down) => "OFFLINE",
-        (Probe::SystemUnit(_) | Probe::UserUnit(_), Health::Up) => "ACTIVE",
-        (Probe::SystemUnit(_) | Probe::UserUnit(_), Health::Down) => "INACTIVE",
+        (Probe::SystemUnit(_) | Probe::AnySystemUnit(_) | Probe::UserUnit(_), Health::Up) => "ACTIVE",
+        (Probe::SystemUnit(_) | Probe::AnySystemUnit(_) | Probe::UserUnit(_), Health::Down) => "INACTIVE",
         (Probe::Binary(_), Health::Up) => "INSTALLED",
         (Probe::Binary(_), Health::Down) => "MISSING",
         (_, Health::Unknown) => "UNKNOWN",
@@ -398,7 +398,7 @@ fn tool_card(c: &Checked) -> String {
 </div>"#,
         name = t.name,
         desc = escape(t.description),
-        path = t.repo_path,
+        path = escape(&crate::hub::display_repo_path(t.repo_path)),
     )
 }
 

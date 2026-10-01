@@ -20,6 +20,10 @@ pub enum Probe {
     Port(u16),
     /// `systemctl is-active <unit>` (system scope).
     SystemUnit(&'static str),
+    /// Up if *any* of these system units is active, for tools that run as
+    /// one of several mutually exclusive units (e.g. VortexWall's dry-run
+    /// vs. enforce unit).
+    AnySystemUnit(&'static [&'static str]),
     /// `systemctl --user is-active <unit>`.
     UserUnit(&'static str),
     /// A CLI-only tool: just confirm the release binary was actually built.
@@ -101,7 +105,7 @@ pub const TOOLS: &[Tool] = &[
         category: "Daemons",
         description: "Active-blackholing firewall (nftables).",
         repo_path: "~/tools/daemons/vortexwall",
-        probe: Probe::SystemUnit("vortexwall"),
+        probe: Probe::AnySystemUnit(&["vortexwall", "vortexwall-enforce"]),
         open_url: None,
         wiki_path: Some("daemons/vortexwall.html"),
     },
@@ -148,7 +152,9 @@ pub const TOOLS: &[Tool] = &[
         category: "Security Tools",
         description: "File-integrity monitor (AIDE/Tripwire category).",
         repo_path: "~/tools/security/sigilward",
-        probe: Probe::Binary("/home/raven/.cargo-target/release/sigilward"),
+        // Its daily timer, not the release binary: a built binary says
+        // nothing about whether the check is actually scheduled.
+        probe: Probe::SystemUnit("sigilward-check.timer"),
         open_url: None,
         wiki_path: Some("security/sigilward.html"),
     },
@@ -157,9 +163,18 @@ pub const TOOLS: &[Tool] = &[
         category: "Security Tools",
         description: "Git activity digest, logged to darknotes.",
         repo_path: "~/tools/security/chronicle",
-        probe: Probe::Binary("/home/raven/.cargo-target/release/chronicle"),
+        probe: Probe::SystemUnit("chronicle-check.timer"),
         open_url: None,
         wiki_path: Some("security/chronicle.html"),
+    },
+    Tool {
+        name: "Argus",
+        category: "Security Tools",
+        description: "Real-time file-integrity watcher on SigilWard's baseline.",
+        repo_path: "~/tools/security/argus",
+        probe: Probe::SystemUnit("argus"),
+        open_url: None,
+        wiki_path: Some("security/argus.html"),
     },
     Tool {
         name: "Undertow",
@@ -227,6 +242,14 @@ pub async fn check(probe: &Probe) -> Health {
             }
         }
         Probe::SystemUnit(unit) => systemctl_is_active(&["is-active", unit]).await,
+        Probe::AnySystemUnit(units) => {
+            for unit in units.iter() {
+                if systemctl_is_active(&["is-active", unit]).await == Health::Up {
+                    return Health::Up;
+                }
+            }
+            Health::Down
+        }
         Probe::UserUnit(unit) => systemctl_is_active(&["--user", "is-active", unit]).await,
         Probe::Binary(path) => {
             if Path::new(path).exists() {
@@ -272,4 +295,86 @@ pub async fn check_all() -> Vec<Checked> {
         Checked { tool, health }
     });
     futures_util::future::join_all(futures).await
+}
+
+/// The repo path to show on a card. Registry paths follow darkbox's layout
+/// (`~/tools/...`, `~/.sysops/...`); on a box that keeps repos in
+/// `~/Devspace/Cybercore/<category>/<name>` instead, show where the repo
+/// actually is. Falls back to the registry path unchanged.
+pub fn display_repo_path(registry_path: &str) -> String {
+    let Some(home) = std::env::var_os("HOME").map(std::path::PathBuf::from) else {
+        return registry_path.to_string();
+    };
+    resolve_repo_path(registry_path, &home)
+}
+
+fn resolve_repo_path(registry_path: &str, home: &Path) -> String {
+    let expanded = match registry_path.strip_prefix("~/") {
+        Some(rest) => home.join(rest),
+        None => Path::new(registry_path).to_path_buf(),
+    };
+    if expanded.exists() {
+        return registry_path.to_string();
+    }
+    let Some(name) = expanded.file_name() else {
+        return registry_path.to_string();
+    };
+    let devspace = home.join("Devspace/Cybercore");
+    if let Ok(categories) = std::fs::read_dir(&devspace) {
+        let mut found: Vec<_> = categories
+            .flatten()
+            .map(|c| c.path().join(name))
+            .filter(|p| p.join(".git").exists())
+            .collect();
+        found.sort();
+        if let Some(path) = found.first() {
+            if let Ok(rel) = path.strip_prefix(home) {
+                return format!("~/{}", rel.display());
+            }
+        }
+    }
+    registry_path.to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn scratch(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("cyberdeck-hub-test-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn existing_registry_path_is_kept() {
+        let home = scratch("keep");
+        std::fs::create_dir_all(home.join("tools/security/argus")).unwrap();
+        assert_eq!(resolve_repo_path("~/tools/security/argus", &home), "~/tools/security/argus");
+    }
+
+    #[test]
+    fn missing_path_resolves_to_devspace_category_repo() {
+        let home = scratch("devspace");
+        std::fs::create_dir_all(home.join("Devspace/Cybercore/security/argus/.git")).unwrap();
+        assert_eq!(
+            resolve_repo_path("~/tools/security/argus", &home),
+            "~/Devspace/Cybercore/security/argus"
+        );
+    }
+
+    #[test]
+    fn unresolvable_path_is_returned_unchanged() {
+        let home = scratch("none");
+        assert_eq!(resolve_repo_path("~/tools/crypto/keysmith", &home), "~/tools/crypto/keysmith");
+    }
+
+    #[test]
+    fn every_tool_name_is_unique() {
+        let mut names: Vec<_> = TOOLS.iter().map(|t| t.name).collect();
+        names.sort();
+        names.dedup();
+        assert_eq!(names.len(), TOOLS.len());
+    }
 }
