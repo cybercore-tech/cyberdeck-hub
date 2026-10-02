@@ -119,7 +119,7 @@ cyberdeck scan --full
 ## 🤝 Contributing
 
 Want to contribute by adding to our Lua Module Development, UI/UX Design? How about writing Rust modules, or Documentation?
-*Contact us*: [cybercore.sh+cyberdeck@gmail.com] (mailto:cybercore.sh+cyberdeck@gmail.com)
+*Contact us*: [dev@cybercoretech.net](mailto:dev@cybercoretech.net)
 
 ---
 
